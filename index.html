@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Anatomy 3D — Study Atlas</title>
+  <meta name="description" content="Interactive 3D human anatomy atlas with quizzes and an exercise coach." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='14' r='9' fill='%23ff6b5b'/><path d='M20 26h24l-4 18h-4l-2 16h-4l-2-16h-4z' fill='%23ff6b5b'/></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/build/three.module.min.js",
+        "three/addons/": "./vendor/three/addons/",
+        "three-mesh-bvh": "./vendor/three-mesh-bvh/index.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn only-mobile" id="btn-drawer" aria-label="Layers and search">☰</button>
+    <div class="brand"><span class="brand-dot"></span>Anatomy<b>3D</b></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" class="tab active" data-mode="explore">Explore</button>
+      <button role="tab" class="tab" data-mode="quiz">Quiz</button>
+      <button role="tab" class="tab" data-mode="pain">What hurts?</button>
+    </nav>
+    <div class="player" id="player" title="Your study level">
+      <div class="lvl" id="lvl">Lv 1</div>
+      <div class="xpbar"><div id="xpfill"></div></div>
+      <div class="xptext" id="xptext">0 XP</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- LEFT: layers, search, tree -->
+    <aside class="drawer" id="drawer">
+      <div class="search">
+        <input id="search" type="search" placeholder="Search 900+ structures…" autocomplete="off" />
+        <div class="results" id="search-results"></div>
+      </div>
+      <section class="block">
+        <h3>Layers</h3>
+        <div id="layers" class="layers"></div>
+        <label class="slider-row">Skin opacity
+          <input type="range" id="skin-opacity" min="0" max="1" step="0.05" value="0.35" />
+        </label>
+      </section>
+      <section class="block">
+        <h3>Browse</h3>
+        <div id="tree" class="tree"></div>
+      </section>
+      <section class="block credits">
+        3D models: <a href="https://lifesciencedb.jp/bp3d/" target="_blank" rel="noopener">BodyParts3D</a>, © The Database Center for Life Science, CC BY-SA 2.1 JP. Simplified for the web.
+      </section>
+    </aside>
+
+    <!-- CENTER: 3D stage -->
+    <section class="stage" id="stage">
+      <div id="canvas-wrap"></div>
+      <div class="hover-tip" id="hover-tip"></div>
+      <div class="label" id="sel-label"><span class="dot"></span><span class="txt"></span></div>
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Loading 3D body… <span id="load-pct">0%</span></div>
+        <div class="loadbar"><div id="loadfill"></div></div>
+      </div>
+      <div class="toolbar">
+        <div class="seg">
+          <button data-view="front" title="Front view">Front</button>
+          <button data-view="back" title="Back view">Back</button>
+          <button data-view="left" title="Body's left side">L</button>
+          <button data-view="right" title="Body's right side">R</button>
+        </div>
+        <div class="seg">
+          <button id="btn-hide" title="Hide selected (H) — peel layers away">Hide</button>
+          <button id="btn-isolate" title="Isolate selected (I)">Isolate</button>
+          <button id="btn-showall" title="Show everything again (A)">Reset</button>
+        </div>
+      </div>
+      <div class="hint" id="hint">Drag to rotate · scroll/pinch to zoom · right-drag to pan · tap a structure</div>
+    </section>
+
+    <!-- RIGHT: panel content by mode -->
+    <aside class="panel" id="panel">
+      <div class="panel-grip only-mobile" id="panel-grip"></div>
+      <div id="panel-explore" class="mode-panel"></div>
+      <div id="panel-quiz" class="mode-panel hidden"></div>
+      <div id="panel-pain" class="mode-panel hidden"></div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <div class="modal hidden" id="routine"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
