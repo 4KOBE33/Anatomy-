@@ -28,11 +28,15 @@ def main(out):
     html = re.sub(r"<!doctype html>\s*", "", html, flags=re.I)
     html = re.sub(r"</?html[^>]*>|</?head>|</?body>", "", html)
     html = re.sub(r'<meta charset="utf-8" />\s*|<meta name="viewport"[^>]*>\s*', "", html)
+    # inline the stylesheet (the artifact host only allows Google Fonts as external CSS)
+    css = open(os.path.join(ROOT, "css", "style.css"), encoding="utf-8").read()
+    html = html.replace('<link rel="stylesheet" href="css/style.css" />', "<style>\n" + css + "\n</style>")
+    html = re.sub(r"<title>.*?</title>", "<title>Anatomy 3D</title>", html)
     # title first so the host finds it
     m = re.search(r"<title>.*?</title>", html)
     html = m.group(0) + "\n" + html.replace(m.group(0), "", 1).strip() + "\n"
     open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(html)
-    for d in ("css", "js"):
+    for d in ("js",):
         shutil.rmtree(os.path.join(out, d), ignore_errors=True)
         shutil.copytree(os.path.join(ROOT, d), os.path.join(out, d))
     md = os.path.join(out, "models")
