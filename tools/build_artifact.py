@@ -7,7 +7,7 @@ Differences from the GitHub Pages build:
 
 usage: python tools/build_artifact.py <out_dir>   (needs gltfpack on PATH)
 """
-import os, re, shutil, subprocess, sys
+import base64, json, os, re, shutil, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMPORTMAP = """<script type="importmap">
@@ -35,6 +35,8 @@ def main(out):
     # title first so the host finds it
     m = re.search(r"<title>.*?</title>", html)
     html = m.group(0) + "\n" + html.replace(m.group(0), "", 1).strip() + "\n"
+    html = html.replace('<script type="module" src="js/main.js"></script>',
+                        '<script>window.ANATOMY_MODEL_FORMAT = "b64";</script>\n  <script type="module" src="js/main.js"></script>')
     open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(html)
     for d in ("js",):
         shutil.rmtree(os.path.join(out, d), ignore_errors=True)
@@ -42,10 +44,15 @@ def main(out):
     md = os.path.join(out, "models")
     os.makedirs(md, exist_ok=True)
     shutil.copy(os.path.join(ROOT, "models", "parts.json"), md)
+    # artifacts don't serve .glb: re-encode without meshopt, then wrap the bytes as base64 JSON
     for f in os.listdir(os.path.join(ROOT, "models")):
         if f.endswith(".glb"):
-            subprocess.run(["gltfpack", "-i", os.path.join(ROOT, "models", f), "-o", os.path.join(md, f),
+            tmp = os.path.join(md, f)
+            subprocess.run(["gltfpack", "-i", os.path.join(ROOT, "models", f), "-o", tmp,
                             "-kn", "-km", "-vp", "14", "-vn", "8"], check=True, capture_output=True)
+            data = base64.b64encode(open(tmp, "rb").read()).decode("ascii")
+            json.dump({"b64": data}, open(os.path.join(md, f[:-4] + ".b64.json"), "w"))
+            os.remove(tmp)
     print("artifact build in", out)
 
 

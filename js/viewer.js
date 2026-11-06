@@ -378,10 +378,20 @@ export class Viewer {
     };
     await Promise.all(
       systems.map(async (sys) => {
-        const gltf = await loader.loadAsync(`models/${sys}.glb`, (e) => {
-          if (e.total) progress.set(sys, (e.loaded / e.total) * 0.95);
-          report();
-        });
+        let gltf;
+        if (window.ANATOMY_MODEL_FORMAT === "b64") {
+          // hosts that can't serve .glb get the same bytes as base64 inside JSON
+          const { b64 } = await (await fetch(`models/${sys}.b64.json`)).json();
+          const bin = atob(b64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          gltf = await loader.parseAsync(bytes.buffer, "");
+        } else {
+          gltf = await loader.loadAsync(`models/${sys}.glb`, (e) => {
+            if (e.total) progress.set(sys, (e.loaded / e.total) * 0.95);
+            report();
+          });
+        }
         const root = gltf.scene;
         root.updateMatrixWorld(true);
         const meshes = [];
