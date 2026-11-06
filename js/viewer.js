@@ -760,6 +760,80 @@ export class Viewer {
     };
   }
 
+  // ---------- practical-exam helpers ----------
+  projectPoint(p) {
+    tmpV.copy(p).project(this.camera);
+    if (tmpV.z > 1) return null;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    return { x: (tmpV.x * 0.5 + 0.5) * rect.width, y: (-tmpV.y * 0.5 + 0.5) * rect.height };
+  }
+  // Where would a camera at `camPos` see the target? Returns the best visible surface point, its outward
+  // normal, how much of the target is visible, and which parts block the view (for "dissecting" them away).
+  findVisiblePoint(ids, camPos, samples = 64) {
+    const set = new Set(ids);
+    const targets = this._pickables(true);
+    const pts = [];
+    for (const id of ids) {
+      const g = this.parts.get(id)?.mesh.geometry;
+      if (!g) continue;
+      const pos = g.attributes.position;
+      const step = Math.max(1, Math.floor(pos.count / Math.ceil(samples / ids.length)));
+      for (let i = 0; i < pos.count; i += step) pts.push(new THREE.Vector3().fromBufferAttribute(pos, i));
+    }
+    const centre = this.boundsOf(ids).getCenter(new THREE.Vector3());
+    const blockers = new Map();
+    let best = null, seen = 0;
+    const fho = this.raycaster.firstHitOnly;
+    this.raycaster.firstHitOnly = false;
+    for (const p of pts) {
+      const dir = p.clone().sub(camPos).normalize();
+      this.raycaster.set(camPos, dir);
+      let hits = this.raycaster.intersectObjects(targets, false).sort((a, b) => a.distance - b.distance);
+      if (this.clip) hits = hits.filter((h) => this.clip.plane.distanceToPoint(h.point) >= 0);
+      const ti = hits.findIndex((h) => set.has(h.object.userData.id));
+      if (ti < 0) continue;
+      if (ti === 0) {
+        seen++;
+        const h = hits[0];
+        const n = h.face ? h.face.normal.clone() : dir.clone().negate();
+        if (n.dot(dir) > 0) n.negate();
+        // prefer points facing the camera and near the middle of the structure
+        const score = -n.dot(dir) - h.point.distanceTo(centre) * 2;
+        if (!best || score > best.score) best = { point: h.point.clone(), normal: n, score };
+      } else {
+        for (let k = 0; k < ti; k++) {
+          const id = hits[k].object.userData.id;
+          if (!set.has(id)) blockers.set(id, (blockers.get(id) || 0) + 1);
+        }
+      }
+    }
+    this.raycaster.firstHitOnly = fho;
+    return { point: best?.point || null, normal: best?.normal || null, visible: pts.length ? seen / pts.length : 0, blockers: [...blockers.keys()] };
+  }
+  // A dissection pin: needle sticking out of the surface with a coloured head.
+  setPin(point, normal, size = 0.075) {
+    if (this._pin) { this.scene.remove(this._pin); this._pin = null; }
+    if (point) {
+      const len = Math.min(0.045, Math.max(0.014, size * 0.6)); // scale with the structure
+      const headR = len * 0.13;
+      const n = normal.clone().normalize();
+      const g = new THREE.Group();
+      const steel = new THREE.MeshStandardMaterial({ color: 0xd8dde3, metalness: 0.9, roughness: 0.25 });
+      const needle = new THREE.Mesh(new THREE.CylinderGeometry(headR * 0.16, headR * 0.16, len, 8), steel);
+      needle.position.copy(point).addScaledVector(n, len / 2);
+      needle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(headR, 20, 14),
+        new THREE.MeshStandardMaterial({ color: 0xff3b30, emissive: 0x7a0f0a, roughness: 0.35 }));
+      head.position.copy(point).addScaledVector(n, len);
+      g.add(needle, head);
+      g.traverse((o) => { o.raycast = () => {}; });
+      this.scene.add(g);
+      this._pin = g;
+      this.pinHead = head.position.clone();
+    } else this.pinHead = null;
+    this.invalidate();
+  }
+
   // Screen position of a part's centre (for labels). Uses the visible surface point nearest the centre when possible.
   screenPos(id) {
     const p = this.parts.get(id);

@@ -14,6 +14,7 @@ An interactive **3D human anatomy atlas** that runs in the browser, built for st
   - *Name it*: pick the name of a highlighted structure. Wrong answers are always nearby structures, so it's not easy.
   - *Facts*: nerve, action, origin, insertion and blood-supply questions.
   - *Mix*: all three shuffled.
+  - *Practical exam*: a timed bell-ringer (tag test). Each station pins one structure on a dissected specimen, with anything covering it peeled away. You type the name from memory, with optional second-order questions like "nerve supply of the pinned muscle". A countdown runs at each station and there's no going back. Grading accepts minor misspellings and common shorthand (FDP, SCM, glute med, CN VII, peroneal/fibular), and you get a pass/fail score with a station-by-station review. Presets: quick spotter, upper limb, lower limb, trunk, neuroanatomy, full-body final.
   - *Flashcards*: spaced repetition (Again / Hard / Good / Easy), so cards you know come back less often.
 
   Every question spotlights its structure: one side only, with the rest of the body faded so you can see what's being asked. A 👁 Context button brings the rest back.
@@ -58,6 +59,7 @@ js/main.js            boot, layers, search, browse tree, labels, Explore mode
 js/viewer.js          three.js scene: materials/shaders, AO, picking (BVH), spotlight, slicing, camera
 js/learn.js           Learn mode (guided lessons)
 js/quiz.js            quiz modes, flashcards (spaced repetition), scoring, mastery tracking
+js/exam.js            timed practical exam: station staging, dissection, pins, answer grading
 js/painui.js          "What hurts?" mode + routine player
 js/util.js            helpers, study-note lookup, progress store
 js/data/kb.js         study notes (395 entries)

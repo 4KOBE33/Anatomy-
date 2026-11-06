@@ -261,3 +261,27 @@ a { color: var(--accent2); }
 .rate button { border-radius: 10px; padding: 9px 4px; font-weight: 700; border: 1px solid var(--line); background: var(--card2); font-size: 13px; }
 .rate button small { display: block; font-weight: 500; color: var(--muted); font-size: 10px; }
 .rate .again { border-color: #7a2a2a; } .rate .hard { border-color: #7a5420; } .rate .good { border-color: #1f6a43; } .rate .easy { border-color: #2c4b6e; }
+
+/* ---------- practical exam ---------- */
+.check-row { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.check-row input { accent-color: var(--accent); margin-top: 2px; }
+.stepbar span.cur { background: var(--accent2); }
+.exam-clock { display: flex; gap: 12px; align-items: center; margin: 4px 0 12px; }
+.ring-sm { position: relative; width: 64px; height: 64px; flex: none; }
+.ring-sm b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; font-variant-numeric: tabular-nums; }
+.exam-input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card2); color: var(--text); font-size: 17px; outline: none; }
+.exam-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #ffc93c33; }
+.btn.on { border-color: var(--bad); color: var(--bad); }
+.exam-review { display: grid; gap: 6px; margin-top: 10px; }
+.xr { display: grid; grid-template-columns: 34px 1fr 24px; gap: 8px; align-items: center; text-align: left; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.xr.sel { border-color: var(--accent2); }
+.xr-n { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.xr-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.xr-key { color: var(--good); font-size: 12px; }
+.xr-mark { font-weight: 900; text-align: center; }
+.xr.ok .xr-mark { color: var(--good); } .xr.no .xr-mark { color: var(--bad); }
+.exam-hist { display: flex; gap: 6px; align-items: flex-end; height: 70px; margin: 6px 0; }
+.eh { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.eh div { width: 100%; border-radius: 4px 4px 0 0; background: var(--bad); opacity: .8; }
+.eh.pass div { background: var(--good); }
+.label.pin .dot, .label.pin .line { background: #ff3b30; box-shadow: none; } .label.pin .txt { border-color: #ff3b30; font-weight: 800; }

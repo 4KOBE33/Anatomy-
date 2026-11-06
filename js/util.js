@@ -38,9 +38,14 @@ export function kbFor(base) {
 export const REGIONS = [
   ["all", "Whole body"], ["head", "Head & neck"], ["trunk", "Trunk"], ["upper", "Upper limb"], ["lower", "Lower limb"],
 ];
-export function regionOf(part) {
+const KB_REGION = { "upper limb": "upper", "lower limb": "lower", "head & neck": "head", thorax: "trunk", abdomen: "trunk", pelvis: "trunk", back: "trunk" };
+export function regionOf(part, kb = null) {
+  const r = KB_REGION[(kb?.region || "").toLowerCase()];
+  if (r) return r;
   const [x, y] = part.center;
   if (y > 1.42) return "head";
+  // arms hang beside the thighs, so check "far from the midline" before height
+  if (Math.abs(x) > 0.2 && y > 0.5) return "upper";
   if (y < 0.8) return "lower";
   if (Math.abs(x) > 0.18 && y > 0.7) return "upper";
   return "trunk";
@@ -51,7 +56,7 @@ const KEY = "anatomy3d.progress.v1";
 function readStore() {
   try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
 }
-export const store = Object.assign({ xp: 0, mastery: {}, rounds: 0, routines: 0, best: 0, perfect: 0, lessons: {}, cards: {}, reviews: 0, streak: 0, lastDay: null }, readStore());
+export const store = Object.assign({ xp: 0, mastery: {}, rounds: 0, routines: 0, best: 0, perfect: 0, lessons: {}, cards: {}, reviews: 0, exams: [], streak: 0, lastDay: null }, readStore());
 export function saveStore() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* private mode */ } }
 export function levelFor(xp) { return Math.floor(Math.sqrt(xp / 60)) + 1; }
 export function xpForLevel(l) { return (l - 1) * (l - 1) * 60; }
@@ -85,6 +90,8 @@ export function achievements() {
     { icon: "📅", name: "Week warrior", desc: "7-day study streak", got: (store.streak || 0) >= 7 },
     { icon: "🧠", name: "Memory 50", desc: "Master 50 structures", got: mastered >= 50 },
     { icon: "💪", name: "Rehab hero", desc: "Finish 3 exercise routines", got: (store.routines || 0) >= 3 },
+    { icon: "⏱️", name: "Practical pass", desc: "Pass a practical exam of 20+ stations", got: (store.exams || []).some((e) => e.n >= 20 && e.pct >= 70) },
+    { icon: "🏅", name: "Honours", desc: "Score 90%+ on a practical exam", got: (store.exams || []).some((e) => e.n >= 10 && e.pct >= 90) },
     { icon: "⭐", name: "Level 10", desc: "Reach level 10", got: levelFor(store.xp) >= 10 },
   ];
 }

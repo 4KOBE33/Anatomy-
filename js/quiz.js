@@ -1,5 +1,6 @@
 // Quiz mode: "Find it" (click in 3D), "Name it" (multiple choice on a highlighted structure),
 // "Facts" (origin / insertion / action / nerve questions), plus a weak-spot review.
+import { initExam } from "./exam.js";
 import { pretty, sysLabel, sysColor, REGIONS, store, saveStore, addXP, recordAnswer, $, h, esc, toast, shuffle } from "./util.js";
 
 const MODES = [
@@ -8,6 +9,7 @@ const MODES = [
   ["facts", "🧠 Facts", "Origins, insertions, actions, nerves."],
   ["mix", "🔀 Mix", "All three, shuffled."],
   ["cards", "🃏 Flashcards", "Spaced repetition — review what's due today."],
+  ["exam", "⏱️ Practical exam", "Timed bell-ringer: pinned structures, type the answer."],
 ];
 const DIFF = [["easy", "Big structures"], ["med", "Medium"], ["hard", "Everything (tiny too)"]];
 const QUIZ_SYSTEMS = ["muscular", "skeletal", "nerves", "nervous", "cardio", "respiratory", "digestive", "urinary", "connective", "endocrine", "reproductive", "lymphatic"];
@@ -23,6 +25,7 @@ export function initQuiz(app) {
     cards: null,
   };
   const el = $("#panel-quiz");
+  const exam = initExam(app, el, () => { st.settings.mode = "find"; renderSetup(); });
 
   // Show one side only (the body's right when paired) so the camera can get close.
   function oneSide(ids) {
@@ -66,6 +69,7 @@ export function initQuiz(app) {
     app.hoverEnabled = true;
     const s = st.settings;
     if (st.custom) return renderCustomSetup();
+    if (s.mode === "exam") return exam.renderSetup();
     const pool = unitPool();
     const weak = Object.entries(store.mastery).filter(([, m]) => m.w > 0 && m.w >= m.c).length;
     el.innerHTML = `
@@ -353,6 +357,7 @@ export function initQuiz(app) {
 
   function onPick(id) {
     const r = st.round;
+    if (exam.active()) return; // exam: tapping doesn't reveal anything
     if (st.cards) return; // flashcards: tapping just lets you rotate/explore the view
     if (!r) { if (id) app.selectPart(id); return; }
     const q = r.qs[r.i];
@@ -495,6 +500,7 @@ export function initQuiz(app) {
   app.modeHandlers.quiz = {
     enter: () => { app.viewer.select([]); app.selectedId = null; renderSetup(); },
     exit: () => {
+      exam.abort();
       clearTimer(); clearTimeout(st.autoNext);
       app.viewer.clearMarks(); app.viewer.clearSpotlight(); app.setLabels([]);
       app.hoverEnabled = true;

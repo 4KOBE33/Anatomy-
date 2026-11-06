@@ -25,8 +25,8 @@ window.app = app; // handy for debugging in the console
 async function boot() {
   const manifest = await (await fetch("models/parts.json")).json();
   for (const p of manifest) {
-    p.region = regionOf(p);
     p.kb = kbFor(p.base);
+    p.region = regionOf(p, p.kb);
     app.byId.set(p.id, p);
     if (!app.units.has(p.base)) app.units.set(p.base, []);
     app.units.get(p.base).push(p.id);
@@ -217,7 +217,7 @@ function updateLabels() {
   const W = $("#stage").clientWidth;
   const items = [];
   for (const l of app.labels) {
-    const p = app.viewer.screenPos(l.id);
+    const p = l.point ? app.viewer.projectPoint(l.point) : app.viewer.screenPos(l.id);
     if (!p) { l.el.style.display = "none"; continue; }
     items.push({ l, p });
   }
