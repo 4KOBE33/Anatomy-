@@ -236,9 +236,13 @@ function updateLabels() {
     const line = l.el.firstChild, txt = l.el.lastChild;
     line.style.width = (single ? 0 : len) + "px";
     line.style.transform = `rotate(${ang}rad)`;
-    txt.style.left = dx + "px";
+    // keep the text box inside the stage
+    const w = txt.offsetWidth || 120;
+    let left = !single && side === "L" ? dx - w : dx;
+    left = Math.max(4 - p.x, Math.min(left, W - 4 - p.x - w));
+    txt.style.left = left + "px";
     txt.style.top = dy + "px";
-    txt.style.transform = `translate(${!single && side === "L" ? "-100%" : "0"}, -50%)`;
+    txt.style.transform = "translateY(-50%)";
   }
 }
 

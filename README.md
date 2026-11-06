@@ -8,7 +8,7 @@ An interactive **3D human anatomy atlas** that runs in the browser, built for st
 - **Peripheral nerves.** A Nerves layer with 244 structures: the brachial plexus and every major arm and leg nerve down to the digital branches, the lumbosacral plexus, the spinal cord and cauda equina, the intercostal nerves, the sympathetic trunk and cranial nerves III–XII.
 - **Explore.** Rotate, zoom and tap anything. Turn body systems on and off, **hide** muscles to peel down to deeper layers, **isolate** a structure, and search all 900+ names.
 - **Cross-sections.** Slice the body in the transverse, sagittal or coronal plane and slide the cut through it.
-- **Guided lessons (29).** Short walkthroughs such as the rotator cuff, quadriceps, leg compartments, coronary arteries, the brain and the visual pathway. Each step fades everything else, flies the camera to the structures and labels them. Finishing a lesson unlocks a quiz on exactly those structures.
+- **Guided lessons (33).** Short walkthroughs such as the rotator cuff, quadriceps, leg compartments, coronary arteries, the brain and the visual pathway. Each step fades everything else, flies the camera to the structures and labels them. Finishing a lesson unlocks a quiz on exactly those structures.
 - **Quiz modes:**
   - *Find it*: tap the named structure on the body.
   - *Name it*: pick the name of a highlighted structure. Wrong answers are always nearby structures, so it's not easy.
@@ -63,6 +63,8 @@ js/util.js            helpers, study-note lookup, progress store
 js/data/kb.js         study notes (395 entries)
 js/data/pain.js       pain areas, exercises, red flags, text matcher
 js/data/lessons.js    guided lessons (29 lessons, 191 steps)
+js/data/kb_nerves.js  study notes for nerves (101 entries)
+js/data/lessons_nerves.js  nerve lessons (brachial plexus, injuries, lower limb, cranial nerves)
 models/*.glb          one compressed model per body system (~5 MB total)
 models/parts.json     part list: FMA id, name, side, system
 tools/                scripts that build the models from BodyParts3D

@@ -138,7 +138,7 @@ export const KB_NERVES = [
     roots: "Abducens nucleus in the pons (under the facial colliculus)",
     course: "Emerges at the pontomedullary junction, climbs the clivus, bends over the petrous apex, runs THROUGH the cavernous sinus beside the internal carotid artery and enters the orbit through the superior orbital fissure inside the common tendinous ring",
     motor: "Lateral rectus (abducts the eye)",
-    clinical: "Lesion: eye turned in (convergent squint) with horizontal diplopia worse on looking to the affected side. Raised intracranial pressure can stretch it over the petrous apex (a 'false localising' sign). It is often the first nerve affected by a cavernous sinus thrombosis or carotid aneurysm because it lies within the sinus rather than in its wall."
+    clinical: "Lesion: eye turned in (convergent squint) with horizontal diplopia worse on looking to the affected side. Raised intracranial pressure can stretch it over the petrous apex (a 'false localising' sign). It is typically the first nerve affected by a cavernous sinus thrombosis or carotid aneurysm because it lies within the sinus rather than in its wall."
   },
   {
     key: "facial-nerve", title: "Facial nerve (CN VII)", match: ["facial nerve"], kind: "nerve", region: "head & neck",
@@ -190,7 +190,7 @@ export const KB_NERVES = [
   {
     key: "spinal-cord", title: "Spinal cord", match: ["spinal cord"], kind: "nerve", region: "back",
     summary: "Part of the CNS in the vertebral canal, linking the brain with the 31 pairs of spinal nerves.",
-    course: "Continuous with the medulla at the foramen magnum; ends as the conus medullaris at about the L1–L2 disc in adults (about L3 at birth); the filum terminale anchors it to the coccyx. Cervical (C4–T1) and lumbosacral (L1–S3) enlargements supply the limbs",
+    course: "Continuous with the medulla at the foramen magnum; ends as the conus medullaris at about the L1–L2 disc in adults (about L3 at birth); the filum terminale anchors it to the coccyx. Cervical (C4–T1) and lumbosacral (T11–S1) enlargements supply the limbs",
     clinical: "Because the cord ends at L1–L2, lumbar puncture is done at L3–L4 or L4–L5 (Tuffier's line between the iliac crests crosses L4). Cord lesions give upper motor neuron signs below the level; hemisection gives Brown-Séquard syndrome (ipsilateral weakness and loss of proprioception/vibration, contralateral loss of pain and temperature).",
     facts: ["31 segments: 8 cervical, 12 thoracic, 5 lumbar, 5 sacral, 1 coccygeal.", "It is surrounded by pia, arachnoid and dura; denticulate ligaments of pia anchor it laterally to the dura."]
   },
@@ -501,22 +501,22 @@ export const KB_NERVES = [
   {
     key: "radial-superficial-branch", title: "Superficial branch of radial nerve", match: ["superficial branch of radial nerve", "dorsal digital branches of radial nerve"], kind: "nerve", region: "upper limb",
     summary: "Purely sensory terminal branch of the radial nerve to the lateral dorsum of the hand.",
-    roots: "Radial nerve, C6–C8",
+    roots: "Radial nerve",
     course: "Descends under cover of brachioradialis, lateral to the radial artery, emerges from under the brachioradialis tendon in the distal forearm, crosses the roof of the anatomical snuffbox and divides into dorsal digital nerves",
-    sensory: "Lateral two-thirds of the dorsum of the hand and the dorsum of the thumb and lateral 1½ fingers as far as the middle phalanges (the nail beds are supplied by the median nerve); autonomous zone = dorsal first web space",
+    sensory: "Lateral two-thirds of the dorsum of the hand and the proximal dorsal skin of the lateral 3½ digits (the skin over the distal phalanges/nail beds is supplied by the median nerve); autonomous zone = dorsal first web space",
     clinical: "Easily compressed against the radius by tight watch straps or handcuffs (Wartenberg syndrome / cheiralgia paraesthetica) and at risk in de Quervain release and cephalic vein cannulation at the wrist ('intern's vein') → numbness/pain over the dorsal first web space."
   },
   {
     key: "inferior-lateral-brachial-cutaneous-nerve", title: "Inferior lateral cutaneous nerve of arm", match: ["inferior lateral brachial cutaneous nerve"], kind: "nerve", region: "upper limb",
     summary: "Cutaneous branch of the radial nerve given off in the radial groove.",
-    roots: "Radial nerve, C5–C6",
+    roots: "Radial nerve",
     course: "Pierces the lateral head of triceps below the deltoid insertion",
     sensory: "Skin of the lower lateral arm, below the territory of the axillary nerve"
   },
   {
     key: "posterior-antebrachial-cutaneous-nerve", title: "Posterior cutaneous nerve of forearm", match: ["posterior antebrachial cutaneous nerve"], kind: "nerve", region: "upper limb",
     summary: "Cutaneous branch of the radial nerve arising in the radial groove.",
-    roots: "Radial nerve, C5–C8",
+    roots: "Radial nerve",
     course: "Pierces the lateral head of triceps and descends behind the lateral epicondyle along the back of the forearm",
     sensory: "Skin of the posterior forearm down to the wrist",
     facts: ["Because it arises in the radial groove, a midshaft humeral fracture may or may not affect it depending on exactly where the nerve is damaged."]
@@ -536,8 +536,8 @@ export const KB_NERVES = [
   {
     key: "anterior-interosseous-nerve", title: "Anterior interosseous nerve", match: ["anterior interosseous nerve"], kind: "nerve", region: "upper limb",
     summary: "Purely motor branch of the median nerve to the deep flexors of the forearm.",
-    roots: "Median nerve, C8–T1 (C7)",
-    course: "Arises from the median nerve as it passes between the heads of pronator teres and descends on the interosseous membrane with the anterior interosseous artery, between FPL and FDP, to end deep to pronator quadratus",
+    roots: "Median nerve",
+    course: "Arises from the median nerve in the distal cubital fossa (as it passes between the heads of pronator teres) and descends on the interosseous membrane with the anterior interosseous artery, between FPL and FDP, to end deep to pronator quadratus",
     motor: "Flexor pollicis longus, lateral half of flexor digitorum profundus (index and middle fingers), pronator quadratus",
     sensory: "No skin (articular branches to the wrist)",
     clinical: "Anterior interosseous nerve syndrome: cannot make an 'OK' sign — the thumb IP and index DIP joints do not flex, so the patient pinches with flat pads (pulp-to-pulp) instead of fingertips; no sensory loss."
@@ -597,7 +597,7 @@ export const KB_NERVES = [
   {
     key: "ulnar-dorsal-branch", title: "Dorsal branch of ulnar nerve", match: ["dorsal branch of ulnar nerve", "dorsal digital branches of ulnar nerve"], kind: "nerve", region: "upper limb",
     summary: "Cutaneous branch that leaves the ulnar nerve in the distal forearm to supply the medial dorsum of the hand.",
-    roots: "Ulnar nerve, C8",
+    roots: "Ulnar nerve",
     course: "Arises about 5 cm above the wrist, passes backwards deep to the FCU tendon and divides into dorsal digital nerves",
     sensory: "Medial third of the dorsum of the hand and the dorsum of the little finger and medial half of the ring finger (proximal parts)",
     clinical: "Localising clue: a lesion in Guyon's canal SPARES the dorsal (and palmar) branches, so sensation on the medial dorsum of the hand is normal; a cubital tunnel lesion affects it."
@@ -693,7 +693,7 @@ export const KB_NERVES = [
     key: "saphenous-nerve", title: "Saphenous nerve", match: ["saphenous nerve"], kind: "nerve", region: "lower limb",
     summary: "Longest cutaneous branch of the femoral nerve; the only femoral nerve branch below the knee.",
     roots: "Femoral nerve, L3–L4",
-    course: "Descends through the femoral triangle and the adductor canal with the femoral vessels (crossing from lateral to anterior to the artery), does NOT pass through the adductor hiatus, emerges between sartorius and gracilis on the medial side of the knee, and accompanies the great saphenous vein down the medial leg in front of the medial malleolus",
+    course: "Descends through the femoral triangle and the adductor canal with the femoral vessels (crossing in front of the femoral artery from lateral to medial), does NOT pass through the adductor hiatus, emerges between sartorius and gracilis on the medial side of the knee, and accompanies the great saphenous vein down the medial leg in front of the medial malleolus",
     sensory: "Skin of the anterior and medial knee (infrapatellar branch), medial side of the leg (medial crural cutaneous branches) and medial side of the foot to about the ball of the great toe",
     clinical: "At risk during great saphenous vein harvesting or varicose vein stripping and with saphenous cutdowns at the ankle → numb medial leg/foot. Saphenous/adductor canal block gives knee and medial-leg analgesia while sparing most quadriceps strength."
   },
@@ -725,7 +725,7 @@ export const KB_NERVES = [
   {
     key: "obturator-posterior-branch", title: "Posterior branch of obturator nerve", match: ["posterior branch of obturator nerve"], kind: "nerve", region: "lower limb",
     summary: "Deep branch of the obturator nerve between adductor brevis and adductor magnus.",
-    roots: "Obturator nerve, L3–L4",
+    roots: "Obturator nerve",
     course: "Pierces obturator externus, then descends behind adductor brevis and in front of adductor magnus",
     motor: "Obturator externus and the adductor part of adductor magnus (sometimes adductor brevis)",
     sensory: "Articular branch to the knee joint (via the popliteal fossa)"
@@ -819,7 +819,7 @@ export const KB_NERVES = [
   {
     key: "medial-plantar-nerve", title: "Medial plantar nerve", match: ["medial plantar nerve"], kind: "nerve", region: "lower limb",
     summary: "Larger terminal branch of the tibial nerve; the 'median nerve of the foot'.",
-    roots: "Tibial nerve, L4–L5",
+    roots: "Terminal branch of the tibial nerve",
     course: "Arises under the flexor retinaculum, runs forward deep to abductor hallucis, then between abductor hallucis and flexor digitorum brevis lateral to the medial plantar artery, giving common and proper plantar digital nerves",
     motor: "Abductor hallucis, flexor digitorum brevis, flexor hallucis brevis, first lumbrical",
     sensory: "Medial two-thirds of the sole and the plantar surface of the medial 3½ toes (including their nail beds)",
@@ -829,7 +829,7 @@ export const KB_NERVES = [
   {
     key: "lateral-plantar-nerve", title: "Lateral plantar nerve", match: ["lateral plantar nerve"], kind: "nerve", region: "lower limb",
     summary: "Smaller terminal branch of the tibial nerve; the 'ulnar nerve of the foot', supplying most intrinsic foot muscles.",
-    roots: "Tibial nerve, S1–S2",
+    roots: "Terminal branch of the tibial nerve",
     course: "Arises under the flexor retinaculum and runs anterolaterally between quadratus plantae and flexor digitorum brevis with the lateral plantar artery, dividing near the base of the fifth metatarsal into superficial (mainly sensory) and deep (motor) branches; the deep branch follows the plantar arch",
     motor: "Quadratus plantae, abductor digiti minimi, flexor digiti minimi brevis, adductor hallucis, all plantar and dorsal interossei, lateral three lumbricals",
     sensory: "Lateral third of the sole and the plantar surface of the lateral 1½ toes",
@@ -849,7 +849,7 @@ export const KB_NERVES = [
   {
     key: "superficial-fibular-nerve", title: "Superficial fibular (peroneal) nerve", match: ["superficial fibular nerve"], kind: "nerve", region: "lower limb",
     summary: "Branch of the common fibular nerve to the lateral compartment (evertors) and most of the skin of the dorsum of the foot.",
-    roots: "Common fibular nerve, L5–S1",
+    roots: "Common fibular nerve (L5–S2)",
     course: "Descends in the lateral compartment between fibularis longus/brevis and extensor digitorum longus, pierces the deep fascia in the distal third of the leg and divides into the medial and intermediate dorsal cutaneous nerves of the foot",
     motor: "Fibularis longus and fibularis brevis (eversion)",
     sensory: "Distal anterolateral leg and most of the dorsum of the foot and toes, except the first web space (deep fibular) and the lateral border (sural)",
@@ -860,7 +860,7 @@ export const KB_NERVES = [
     match: ["medial dorsal cutaneous nerve of foot", "intermediate dorsal cutaneous nerve of foot", "dorsal digital branches of superficial fibular nerve"],
     kind: "nerve", region: "lower limb",
     summary: "Terminal cutaneous branches of the superficial fibular nerve across the dorsum of the foot.",
-    roots: "Superficial fibular nerve, L4–S1",
+    roots: "Superficial fibular nerve",
     course: "The medial branch passes in front of the ankle to the medial side of the great toe and the 2nd/3rd web space; the intermediate branch runs to the 3rd/4th and 4th/5th web spaces; both end as dorsal digital nerves",
     sensory: "Dorsum of the foot and toes except the first web space (deep fibular) and the lateral border (sural)",
     clinical: "The intermediate dorsal cutaneous nerve can often be seen under the skin when the foot is plantarflexed and inverted; it is the structure most at risk from the anterolateral ankle arthroscopy portal."
