@@ -23,10 +23,12 @@
     <div class="brand"><span class="brand-dot"></span>Anatomy<b>3D</b></div>
     <nav class="tabs" role="tablist">
       <button role="tab" class="tab active" data-mode="explore">Explore</button>
+      <button role="tab" class="tab" data-mode="learn">Learn</button>
       <button role="tab" class="tab" data-mode="quiz">Quiz</button>
-      <button role="tab" class="tab" data-mode="pain">What hurts?</button>
+      <button role="tab" class="tab" data-mode="pain"><span class="only-desktop">What hurts?</span><span class="only-mobile-inline">Pain</span></button>
     </nav>
     <div class="player" id="player" title="Your study level">
+      <div class="streak-badge" id="streak"></div>
       <div class="lvl" id="lvl">Lv 1</div>
       <div class="xpbar"><div id="xpfill"></div></div>
       <div class="xptext" id="xptext">0 XP</div>
@@ -48,6 +50,21 @@
         </label>
       </section>
       <section class="block">
+        <h3>View</h3>
+        <div class="seg-pick small" id="slice-axis">
+          <button class="on" data-axis="">No slice</button>
+          <button data-axis="transverse" title="Horizontal cross-section">Transverse</button>
+          <button data-axis="sagittal" title="Left/right cut">Sagittal</button>
+          <button data-axis="coronal" title="Front/back cut">Coronal</button>
+        </div>
+        <label class="slider-row">Slice position
+          <input type="range" id="slice-pos" min="0" max="1" step="0.005" value="0.6" disabled />
+        </label>
+        <div class="slider-row" style="margin-top:10px">Graphics
+          <div class="seg-pick small" id="quality"><button data-q="high">✨ High</button><button data-q="fast">⚡ Fast</button></div>
+        </div>
+      </section>
+      <section class="block">
         <h3>Browse</h3>
         <div id="tree" class="tree"></div>
       </section>
@@ -60,7 +77,7 @@
     <section class="stage" id="stage">
       <div id="canvas-wrap"></div>
       <div class="hover-tip" id="hover-tip"></div>
-      <div class="label" id="sel-label"><span class="dot"></span><span class="txt"></span></div>
+      <div id="labels"></div>
       <div class="loading" id="loading">
         <div class="spinner"></div>
         <div>Loading 3D body… <span id="load-pct">0%</span></div>
@@ -86,6 +103,7 @@
     <aside class="panel" id="panel">
       <div class="panel-grip only-mobile" id="panel-grip"></div>
       <div id="panel-explore" class="mode-panel"></div>
+      <div id="panel-learn" class="mode-panel hidden"></div>
       <div id="panel-quiz" class="mode-panel hidden"></div>
       <div id="panel-pain" class="mode-panel hidden"></div>
     </aside>

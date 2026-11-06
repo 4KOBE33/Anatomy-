@@ -46,13 +46,46 @@ const KEY = "anatomy3d.progress.v1";
 function readStore() {
   try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
 }
-export const store = Object.assign({ xp: 0, mastery: {}, rounds: 0, routines: 0, best: 0 }, readStore());
+export const store = Object.assign({ xp: 0, mastery: {}, rounds: 0, routines: 0, best: 0, perfect: 0, lessons: {}, cards: {}, reviews: 0, streak: 0, lastDay: null }, readStore());
 export function saveStore() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* private mode */ } }
 export function levelFor(xp) { return Math.floor(Math.sqrt(xp / 60)) + 1; }
 export function xpForLevel(l) { return (l - 1) * (l - 1) * 60; }
 const listeners = [];
 export function onXP(fn) { listeners.push(fn); }
+// ---------- daily streak ----------
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+export function touchDay() {
+  const today = dayKey();
+  if (store.lastDay === today) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  store.streak = store.lastDay === dayKey(y) ? (store.streak || 0) + 1 : 1;
+  store.lastDay = today;
+  saveStore();
+}
+export function currentStreak() {
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  return store.lastDay === dayKey() || store.lastDay === dayKey(y) ? store.streak || 0 : 0;
+}
+
+export function achievements() {
+  const mastered = Object.values(store.mastery).filter((m) => m.c >= 3 && m.c > m.w).length;
+  const lessonsDone = Object.values(store.lessons || {}).filter((l) => l.done).length;
+  return [
+    { icon: "🎯", name: "First quiz", desc: "Finish a quiz round", got: store.rounds >= 1 },
+    { icon: "💯", name: "Perfect", desc: "Score 100% on a full round", got: (store.perfect || 0) >= 1 },
+    { icon: "📚", name: "Student", desc: "Complete a guided lesson", got: lessonsDone >= 1 },
+    { icon: "🎓", name: "Scholar", desc: "Complete 10 lessons", got: lessonsDone >= 10 },
+    { icon: "🃏", name: "Card shark", desc: "Review 100 flashcards", got: (store.reviews || 0) >= 100 },
+    { icon: "🔥", name: "On fire", desc: "3-day study streak", got: (store.streak || 0) >= 3 },
+    { icon: "📅", name: "Week warrior", desc: "7-day study streak", got: (store.streak || 0) >= 7 },
+    { icon: "🧠", name: "Memory 50", desc: "Master 50 structures", got: mastered >= 50 },
+    { icon: "💪", name: "Rehab hero", desc: "Finish 3 exercise routines", got: (store.routines || 0) >= 3 },
+    { icon: "⭐", name: "Level 10", desc: "Reach level 10", got: levelFor(store.xp) >= 10 },
+  ];
+}
+
 export function addXP(n) {
+  touchDay();
   const before = levelFor(store.xp);
   store.xp += Math.round(n);
   saveStore();
@@ -63,6 +96,7 @@ export function recordAnswer(unit, ok) {
   const m = (store.mastery[unit] ||= { c: 0, w: 0 });
   ok ? m.c++ : m.w++;
   m.t = Date.now();
+  touchDay();
   saveStore();
 }
 

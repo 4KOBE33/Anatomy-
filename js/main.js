@@ -1,8 +1,9 @@
 import { Viewer } from "./viewer.js";
 import {
   SYSTEM_ORDER, sysLabel, sysColor, sysBlurb, pretty, kbFor, regionOf, store, levelFor, xpForLevel, onXP,
-  $, h, esc, toast,
+  $, h, esc, toast, achievements, currentStreak,
 } from "./util.js";
+import { initLearn } from "./learn.js";
 import { initQuiz } from "./quiz.js";
 import { initPain } from "./painui.js";
 
@@ -65,11 +66,13 @@ async function boot() {
     tip.style.left = x - r.left + 14 + "px";
     tip.style.top = y - r.top + 14 + "px";
   };
-  viewer.onFrame = updateLabel;
+  viewer.onFrame = updateLabels;
 
   app.modeHandlers.explore = { onPick: (id) => selectPart(id), enter: () => renderExplore() };
   initQuiz(app);
   initPain(app);
+  initLearn(app);
+  bindViewControls();
   renderExplore();
   handleHash();
 }
@@ -170,8 +173,9 @@ function groupIdsFor(p) {
 }
 function selectPart(id, { focus = false } = {}) {
   app.selectedId = id;
-  if (!id) { app.viewer.select([]); renderExplore(); return; }
+  if (!id) { app.viewer.select([]); app.setLabels([]); renderExplore(); return; }
   const p = app.byId.get(id);
+  app.setLabels([{ id, text: pretty(p.name) }]);
   app.ensureVisible([id]);
   app.viewer.select([id], groupIdsFor(p));
   if (focus) app.viewer.focusSmart([id]);
@@ -183,6 +187,7 @@ function selectGroup(ids) {
   if (!ids.length) return;
   app.ensureVisible(ids);
   app.selectedId = ids[0];
+  app.setLabels([{ id: ids[0], text: pretty(app.byId.get(ids[0]).name) }]);
   app.viewer.select(ids.length === 1 ? ids : [ids[0]], ids);
   app.viewer.isolated = null;
   for (const x of ids) app.viewer.hidden.delete(x);
@@ -195,18 +200,46 @@ function selectGroup(ids) {
 app.selectPart = selectPart;
 app.selectGroup = selectGroup;
 
-function updateLabel() {
-  const lab = $("#sel-label");
-  const id = app.selectedId;
-  if (!id || !app.labelEnabled || app.mode !== "explore") { lab.style.display = "none"; return; }
-  const pos = app.viewer.screenPos(id);
-  if (!pos) { lab.style.display = "none"; return; }
-  lab.style.display = "block";
-  lab.style.left = pos.x + "px";
-  lab.style.top = pos.y + "px";
-  const txt = pretty(app.byId.get(id).name);
-  const el = lab.querySelector(".txt");
-  if (el.textContent !== txt) el.textContent = txt;
+// ---------- labels (several at once, with leader lines) ----------
+app.labels = [];
+app.setLabels = (arr) => {
+  const layer = $("#labels");
+  layer.innerHTML = "";
+  app.labels = (arr || []).map((l) => {
+    const el = h(`<div class="label ${l.cls || ""}"><span class="line"></span><span class="dot"></span><span class="txt">${esc(l.text)}</span></div>`);
+    layer.appendChild(el);
+    return { ...l, el };
+  });
+  app.viewer?.invalidate();
+};
+function updateLabels() {
+  if (!app.labels.length) return;
+  const W = $("#stage").clientWidth;
+  const items = [];
+  for (const l of app.labels) {
+    const p = app.viewer.screenPos(l.id);
+    if (!p) { l.el.style.display = "none"; continue; }
+    items.push({ l, p });
+  }
+  items.sort((a, b) => a.p.y - b.p.y);
+  const lastY = { L: -1e9, R: -1e9 };
+  const single = items.length === 1;
+  for (const { l, p } of items) {
+    const side = p.x < W * 0.5 ? "L" : "R";
+    const ty = Math.max(p.y - (single ? 0 : 10), lastY[side] + 28);
+    lastY[side] = ty;
+    const dx = single ? 26 : (side === "L" ? -70 : 70), dy = ty - p.y;
+    const len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+    l.el.style.display = "block";
+    l.el.style.left = p.x + "px";
+    l.el.style.top = p.y + "px";
+    const line = l.el.firstChild, txt = l.el.lastChild;
+    line.style.width = (single ? 0 : len) + "px";
+    line.style.transform = `rotate(${ang}rad)`;
+    txt.style.left = dx + "px";
+    txt.style.top = dy + "px";
+    txt.style.transform = `translate(${!single && side === "L" ? "-100%" : "0"}, -50%)`;
+  }
 }
 
 // ---------- explore panel ----------
@@ -228,12 +261,14 @@ function renderExplore() {
            • <b>Hide</b> superficial muscles to peel down to deeper layers.<br>
            • Toggle <b>layers</b> (left) — organs, brain, heart & vessels.<br>
            • <b>Double-tap</b> to zoom onto a part.</p>
-        <div class="row"><button class="btn primary" id="rand">🎲 Random structure</button><button class="btn" id="goquiz">Start a quiz</button></div>
+        <div class="row"><button class="btn primary" id="golearn">📚 Start a lesson</button><button class="btn" id="goquiz">🎯 Quiz</button><button class="btn" id="rand">🎲 Random</button></div>
       </div>
       <div class="card">
         <h4 style="margin-top:0">Your progress</h4>
-        <div class="stats"><div><b>${levelFor(store.xp)}</b>Level</div><div><b>${mastered}</b>Mastered</div><div><b>${store.rounds}</b>Quizzes</div></div>
-        <p class="muted" style="font-size:12px">A structure counts as mastered after 3+ correct answers.</p>
+        <div class="stats"><div><b>${levelFor(store.xp)}</b>Level</div><div><b>${mastered}</b>Mastered</div><div><b>🔥 ${currentStreak()}</b>Day streak</div></div>
+        <p class="muted" style="font-size:12px">A structure counts as mastered after 3+ correct answers. Study every day to keep your streak.</p>
+        <h4>Badges</h4>
+        <div class="badges">${achievements().map((a) => `<div class="badge ${a.got ? "got" : ""}" title="${esc(a.desc)}"><span>${a.icon}</span>${esc(a.name)}</div>`).join("")}</div>
       </div>`;
     el.querySelector("#rand").onclick = () => {
       const pool = app.parts.filter((p) => p.kb && app.viewer.systemsVisible.has(p.system) && p.size > 0.08);
@@ -241,6 +276,7 @@ function renderExplore() {
       selectGroup(groupIdsFor(p));
     };
     el.querySelector("#goquiz").onclick = () => switchMode("quiz");
+    el.querySelector("#golearn").onclick = () => switchMode("learn");
     return;
   }
   const p = app.byId.get(id);
@@ -280,7 +316,7 @@ function renderExplore() {
   el.querySelectorAll(".parts-list button").forEach((b) => (b.onclick = () => { selectPart(b.dataset.id); app.viewer.focusSmart([b.dataset.id]); }));
   el.querySelector("#b-focus").onclick = () => app.viewer.focus([id], { pad: 2.2 });
   el.querySelector("#b-hide").onclick = hideSelected;
-  el.querySelector("#b-iso").onclick = () => app.viewer.isolate(groupIdsFor(p));
+  el.querySelector("#b-iso").onclick = () => app.viewer.spotlight(groupIdsFor(p), { highlight: false, pad: 1.8 });
   el.querySelector("#b-both")?.addEventListener("click", () => { const ids = group.map((q) => q.id); app.viewer.select([id], ids); app.viewer.isolate(ids); app.viewer.focus(ids); });
   el.querySelector("#b-hurt").onclick = () => { switchMode("pain"); app.pain?.fromPart(id); };
 }
@@ -292,6 +328,7 @@ function hideSelected() {
   toast(`Hidden: ${pretty(app.byId.get(id).name)} — press Reset to bring it back`);
   app.selectedId = null;
   app.viewer.select([]);
+  app.setLabels([]);
   renderExplore();
 }
 
@@ -318,10 +355,47 @@ function bindToolbar() {
     if (k === "h") hideSelected();
     else if (k === "i") $("#btn-isolate").click();
     else if (k === "a") $("#btn-showall").click();
-    else if (k === "escape") { selectPart(null); }
+    else if (k === "escape") { if (app.mode === "explore") selectPart(null); }
     else if (k === "f" && app.selectedId) app.viewer.focus([app.selectedId], { pad: 2.2 });
   });
 }
+// ---------- view: slice + graphics ----------
+function bindViewControls() {
+  let axis = null;
+  const slider = $("#slice-pos");
+  const apply = () => app.viewer.setClip(axis, +slider.value);
+  document.querySelectorAll("#slice-axis button").forEach((b) => (b.onclick = () => {
+    axis = b.dataset.axis || null;
+    document.querySelectorAll("#slice-axis button").forEach((x) => x.classList.toggle("on", x === b));
+    slider.disabled = !axis;
+    if (axis) {
+      slider.value = { transverse: 0.62, sagittal: 0.5, coronal: 0.5 }[axis];
+      app.viewer.setView(axis === "sagittal" ? "left" : "front");
+      toast({ transverse: "Horizontal slice — drag the slider to move up & down", sagittal: "Side-to-side slice — showing the body's right half", coronal: "Front-to-back slice — showing the back half" }[axis]);
+    }
+    apply();
+  }));
+  slider.addEventListener("input", apply);
+  document.querySelectorAll("#quality button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.q === app.viewer.quality);
+    b.onclick = () => {
+      app.viewer.setQuality(b.dataset.q);
+      document.querySelectorAll("#quality button").forEach((x) => x.classList.toggle("on", x === b));
+    };
+  });
+}
+
+// Keep the 3D focus point above the bottom sheet on phones.
+function updateInset() {
+  const mobile = matchMedia("(max-width: 820px)").matches;
+  const panel = $("#panel");
+  const stageH = $("#stage").clientHeight;
+  const inset = mobile && !panel.classList.contains("collapsed") ? Math.min(panel.offsetHeight, stageH * 0.5) * 0.85 : 0;
+  app.viewer?.setBottomInset(inset);
+}
+new ResizeObserver(updateInset).observe(document.querySelector("#panel"));
+window.addEventListener("resize", updateInset);
+
 function closeDrawerMobile() { $("#drawer").classList.remove("open"); }
 function openPanelMobile() { $("#panel").classList.remove("collapsed"); }
 app.openPanelMobile = openPanelMobile;
@@ -338,6 +412,7 @@ function switchMode(mode) {
   document.querySelectorAll(".mode-panel").forEach((p) => p.classList.toggle("hidden", p.id !== `panel-${mode}`));
   app.hoverEnabled = true;
   app.viewer.pickFilter = null;
+  app.setLabels([]);
   app.modeHandlers[mode]?.enter?.();
   openPanelMobile();
   history.replaceState(null, "", mode === "explore" ? location.pathname : `#${mode}`);
@@ -345,7 +420,7 @@ function switchMode(mode) {
 app.switchMode = switchMode;
 function handleHash() {
   const m = location.hash.slice(1);
-  if (["quiz", "pain"].includes(m)) switchMode(m);
+  if (["quiz", "pain", "learn"].includes(m)) switchMode(m);
 }
 
 // ---------- XP ----------
@@ -355,6 +430,9 @@ function updateXP(levelUp) {
   $("#lvl").textContent = `Lv ${lvl}`;
   $("#xpfill").style.width = ((store.xp - a) / (b - a)) * 100 + "%";
   $("#xptext").textContent = `${store.xp} XP`;
+  const sk = currentStreak();
+  $("#streak").textContent = sk ? `🔥 ${sk}` : "";
+  $("#streak").title = sk ? `${sk}-day study streak` : "";
   if (levelUp) toast(`🎉 Level up! You're now level ${lvl}`);
 }
 

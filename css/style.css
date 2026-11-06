@@ -26,7 +26,7 @@ body {
 button { font: inherit; color: inherit; cursor: pointer; }
 a { color: var(--accent2); }
 .hidden { display: none !important; }
-.only-mobile { display: none; }
+.only-mobile, .only-mobile-inline { display: none; }
 
 /* ---------- top bar ---------- */
 .topbar {
@@ -98,9 +98,13 @@ a { color: var(--accent2); }
 .seg button:hover { background: var(--card2); }
 .hint { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); color: var(--muted); font-size: 12px; background: rgba(13,17,23,.6); padding: 4px 10px; border-radius: 20px; pointer-events: none; white-space: nowrap; transition: opacity 1s; }
 .hover-tip { position: absolute; pointer-events: none; background: rgba(13,17,23,.9); border: 1px solid var(--line); padding: 4px 8px; border-radius: 8px; font-size: 12px; display: none; white-space: nowrap; z-index: 5; }
-.label { position: absolute; pointer-events: none; display: none; transform: translate(-6px, -6px); z-index: 4; }
-.label .dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px #ffc93c55, 0 0 16px var(--accent); }
-.label .txt { position: absolute; left: 22px; top: -6px; background: rgba(13,17,23,.92); border: 1px solid var(--accent); color: var(--text); padding: 3px 9px; border-radius: 8px; font-weight: 600; white-space: nowrap; font-size: 13px; }
+#labels { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
+.label { position: absolute; pointer-events: none; display: none; width: 0; height: 0; }
+.label .dot { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px #ffc93c55, 0 0 14px var(--accent); }
+.label .line { position: absolute; left: 0; top: 0; height: 1.5px; background: var(--accent); transform-origin: 0 50%; opacity: .85; }
+.label .txt { position: absolute; background: rgba(13,17,23,.92); border: 1px solid var(--accent); color: var(--text); padding: 3px 9px; border-radius: 8px; font-weight: 600; white-space: nowrap; font-size: 13px; }
+.label.ok .dot, .label.ok .line { background: var(--good); box-shadow: none; } .label.ok .txt { border-color: var(--good); }
+.label.ctx .dot, .label.ctx .line { background: var(--accent2); box-shadow: none; } .label.ctx .txt { border-color: var(--accent2); font-weight: 500; }
 
 .loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); z-index: 6; background: rgba(13,17,23,.6); }
 .spinner { width: 44px; height: 44px; border: 4px solid var(--card2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; }
@@ -211,6 +215,9 @@ a { color: var(--accent2); }
 }
 @media (max-width: 820px) {
   .only-mobile { display: block; }
+  .only-mobile-inline { display: inline; }
+  .only-desktop { display: none; }
+  .label .txt { font-size: 11px; padding: 2px 6px; }
   .topbar { gap: 8px; padding: 0 10px; }
   .brand { font-size: 0; gap: 0; }
   .brand-dot { width: 16px; height: 16px; }
@@ -229,3 +236,27 @@ a { color: var(--accent2); }
   .seg button { padding: 7px 9px; font-size: 12px; }
   .prompt { font-size: 19px; }
 }
+
+/* ---------- v2 additions ---------- */
+.streak-badge { font-weight: 800; color: var(--warn); font-size: 13px; white-space: nowrap; }
+.seg-pick.small button { padding: 5px 8px; font-size: 12px; }
+.slider-row input:disabled { opacity: .35; }
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 6px; }
+.badge { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 6px; text-align: center; font-size: 11px; color: var(--muted); filter: grayscale(1); opacity: .5; }
+.badge span { display: block; font-size: 22px; }
+.badge.got { filter: none; opacity: 1; color: var(--text); border-color: #5a4920; background: #2a2416; }
+.lesson-cat { margin: 14px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.lesson { display: flex; gap: 10px; align-items: center; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; }
+.lesson:hover { border-color: var(--accent2); }
+.lesson .em { font-size: 24px; width: 32px; text-align: center; }
+.lesson .meta { font-size: 11px; color: var(--muted); }
+.lesson .done { margin-left: auto; color: var(--good); font-weight: 800; }
+.stepbar { display: flex; gap: 4px; margin: 6px 0 10px; }
+.stepbar span { flex: 1; height: 4px; border-radius: 3px; background: var(--card2); }
+.stepbar span.on { background: var(--accent); }
+.flash { min-height: 150px; display: flex; flex-direction: column; justify-content: center; }
+.flash .q { font-size: 20px; font-weight: 800; }
+.rate { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
+.rate button { border-radius: 10px; padding: 9px 4px; font-weight: 700; border: 1px solid var(--line); background: var(--card2); font-size: 13px; }
+.rate button small { display: block; font-weight: 500; color: var(--muted); font-size: 10px; }
+.rate .again { border-color: #7a2a2a; } .rate .hard { border-color: #7a5420; } .rate .good { border-color: #1f6a43; } .rate .easy { border-color: #2c4b6e; }

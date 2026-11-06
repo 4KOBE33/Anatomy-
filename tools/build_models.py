@@ -11,11 +11,11 @@ Requires: numpy, trimesh, fast-simplification; and `gltfpack` on PATH (npm i -g 
 import json, os, subprocess, sys
 import numpy as np, trimesh, fast_simplification
 
-# Triangle budget per system (sum ~1.2M) - tuned for laptops & recent phones.
-BUDGET = dict(muscular=520_000, skeletal=300_000, nervous=110_000, cardio=80_000,
+# Triangle budget per system (sum ~1.5M) - tuned for laptops & recent phones.
+BUDGET = dict(muscular=760_000, skeletal=360_000, nervous=110_000, cardio=80_000,
               connective=45_000, digestive=45_000, respiratory=35_000, skin=60_000,
               endocrine=8_000, urinary=12_000, reproductive=8_000, lymphatic=4_000)
-MIN_T, MAX_T = 160, 16_000
+MIN_T, MAX_T = 200, 22_000
 MAX_T_SYS = dict(skin=48_000)
 CENTER_Y_MM = -96.0  # front/back centre of body in source coords
 

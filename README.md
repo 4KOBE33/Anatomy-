@@ -4,14 +4,20 @@ An interactive **3D human anatomy atlas** that runs in the browser, built for st
 
 - **Real anatomy.** 933 separately clickable structures from the MRI-derived [BodyParts3D](https://lifesciencedb.jp/bp3d/) dataset: every bone, about 420 muscle parts, tendons and ligaments, brain structures, heart and great vessels, lungs, digestive, urinary, endocrine and reproductive organs, and skin.
 - **Study notes for every structure.** Muscles have origin, insertion, action, nerve (with root values) and blood supply, plus clinical notes, mnemonics and high-yield facts. Bones have key landmarks. Brain structures have functions and lesion effects. Vessels have their course and what they supply or drain.
+- **Realistic rendering.** Muscle-fibre surface detail that follows each muscle's fibre direction, white tendons where muscles taper, wet-looking organs, and ambient-occlusion shadows in the creases. There's a ⚡ Fast mode for older phones.
 - **Explore.** Rotate, zoom and tap anything. Turn body systems on and off, **hide** muscles to peel down to deeper layers, **isolate** a structure, and search all 900+ names.
+- **Cross-sections.** Slice the body in the transverse, sagittal or coronal plane and slide the cut through it.
+- **Guided lessons (29).** Short walkthroughs such as the rotator cuff, quadriceps, leg compartments, coronary arteries, the brain and the visual pathway. Each step fades everything else, flies the camera to the structures and labels them. Finishing a lesson unlocks a quiz on exactly those structures.
 - **Quiz modes:**
   - *Find it*: tap the named structure on the body.
   - *Name it*: pick the name of a highlighted structure. Wrong answers are always nearby structures, so it's not easy.
   - *Facts*: nerve, action, origin, insertion and blood-supply questions.
   - *Mix*: all three shuffled.
+  - *Flashcards*: spaced repetition (Again / Hard / Good / Easy), so cards you know come back less often.
 
-  You can filter by system, region and difficulty. You earn XP, levels and streaks, and a **weak-spot review** brings back what you missed. Progress is saved in your browser.
+  Every question spotlights its structure: one side only, with the rest of the body faded so you can see what's being asked. A 👁 Context button brings the rest back.
+
+  You can filter by system, region and difficulty. You earn XP, levels, a daily study streak and badges, and a **weak-spot review** brings back what you missed. Progress is saved in your browser.
 - **What hurts?** Type where it hurts ("outside of my knee when I run", "tennis elbow", "heel pain in the morning") or tap the spot on the body. You get:
   - the structures usually involved, highlighted in 3D
   - common causes and tips
@@ -47,21 +53,23 @@ In the repo on GitHub, go to **Settings → Pages**. Under **Build and deploymen
 ```
 index.html            app shell (import map for three.js)
 css/style.css
-js/main.js            boot, layers, search, browse tree, Explore mode
-js/viewer.js          three.js scene: loading, picking (BVH), highlighting, camera
-js/quiz.js            quiz modes, scoring, mastery tracking
+js/main.js            boot, layers, search, browse tree, labels, Explore mode
+js/viewer.js          three.js scene: materials/shaders, AO, picking (BVH), spotlight, slicing, camera
+js/learn.js           Learn mode (guided lessons)
+js/quiz.js            quiz modes, flashcards (spaced repetition), scoring, mastery tracking
 js/painui.js          "What hurts?" mode + routine player
 js/util.js            helpers, study-note lookup, progress store
 js/data/kb.js         study notes (395 entries)
 js/data/pain.js       pain areas, exercises, red flags, text matcher
-models/*.glb          one compressed model per body system (~4 MB total)
+js/data/lessons.js    guided lessons (29 lessons, 191 steps)
+models/*.glb          one compressed model per body system (~5 MB total)
 models/parts.json     part list: FMA id, name, side, system
 tools/                scripts that build the models from BodyParts3D
 vendor/               three.js r170 + three-mesh-bvh (MIT)
 ```
 
 ### Rebuilding the models
-`tools/build_models.py` turns the original BodyParts3D STL files into web models. It merges vertices, simplifies each mesh to about 1.2M triangles in total, converts to metres with Y up, and writes one GLB per body system, compressed with [gltfpack](https://github.com/zeux/meshoptimizer). `tools/classify.py` assigns each part a system, a side and a base name, and its output is `tools/parts_source.json`.
+`tools/build_models.py` turns the original BodyParts3D STL files into web models. It merges vertices, simplifies each mesh to about 1.5M triangles in total, converts to metres with Y up, and writes one GLB per body system, compressed with [gltfpack](https://github.com/zeux/meshoptimizer). `tools/classify.py` assigns each part a system, a side and a base name, and its output is `tools/parts_source.json`.
 
 ```bash
 pip install numpy trimesh fast-simplification && npm i -g gltfpack

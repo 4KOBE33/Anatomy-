@@ -7,6 +7,7 @@ const MODES = [
   ["name", "🏷️ Name it", "We highlight it — you pick the name."],
   ["facts", "🧠 Facts", "Origins, insertions, actions, nerves."],
   ["mix", "🔀 Mix", "All three, shuffled."],
+  ["cards", "🃏 Flashcards", "Spaced repetition — review what's due today."],
 ];
 const DIFF = [["easy", "Big structures"], ["med", "Medium"], ["hard", "Everything (tiny too)"]];
 const QUIZ_SYSTEMS = ["muscular", "skeletal", "nervous", "cardio", "respiratory", "digestive", "urinary", "connective", "endocrine", "reproductive", "lymphatic"];
@@ -18,8 +19,23 @@ export function initQuiz(app) {
     settings: { mode: "find", systems: new Set(["muscular"]), diff: "easy", region: "all", review: false },
     round: null,
     timer: null,
+    custom: null, // { bases:Set, title } — quiz restricted to a lesson's structures
+    cards: null,
   };
   const el = $("#panel-quiz");
+
+  // Show one side only (the body's right when paired) so the camera can get close.
+  function oneSide(ids) {
+    const right = ids.filter((id) => app.byId.get(id).side === "right");
+    return right.length ? right : ids;
+  }
+  function biggest(ids) { return ids.reduce((a, b) => (app.byId.get(b).size > app.byId.get(a).size ? b : a)); }
+  function spotlight(ids, label, cls = "") {
+    const s = oneSide(ids);
+    app.ensureVisible(s);
+    app.viewer.spotlight(s, { ghost: 0.12, pad: 1.35 });
+    app.setLabels(label ? [{ id: biggest(s), text: label, cls }] : []);
+  }
 
   // Units = base names (side-agnostic); each has a list of part ids.
   function unitPool() {
@@ -29,6 +45,10 @@ export function initQuiz(app) {
     for (const [base, ids] of app.units) {
       const parts = ids.map((i) => app.byId.get(i));
       const p = parts[0];
+      if (st.custom) {
+        if (st.custom.bases.has(base)) pool.push({ base, ids, sys: p.system, center: p.center, kb: p.kb });
+        continue;
+      }
       if (!s.systems.has(p.system)) continue;
       if (s.region !== "all" && !parts.some((q) => q.region === s.region)) continue;
       if (Math.max(...parts.map((q) => q.size)) < min) continue;
@@ -41,8 +61,11 @@ export function initQuiz(app) {
   function renderSetup() {
     clearTimer();
     app.viewer.clearMarks();
+    app.viewer.clearSpotlight();
+    app.setLabels([]);
     app.hoverEnabled = true;
     const s = st.settings;
+    if (st.custom) return renderCustomSetup();
     const pool = unitPool();
     const weak = Object.entries(store.mastery).filter(([, m]) => m.w > 0 && m.w >= m.c).length;
     el.innerHTML = `
@@ -53,8 +76,8 @@ export function initQuiz(app) {
         <h4>Systems</h4><div class="seg-pick" id="q-sys"></div>
         <h4>Region</h4><div class="seg-pick" id="q-reg"></div>
         <h4>Difficulty</h4><div class="seg-pick" id="q-diff"></div>
-        <p class="muted" style="margin-top:10px">${pool.length} structures in this pool.</p>
-        <button class="btn primary wide" id="q-start" ${pool.length < 4 ? "disabled" : ""}>Start round ▶</button>
+        <p class="muted" style="margin-top:10px">${s.mode === "cards" ? `${cardDeck().filter(isDue).length} cards due · ${cardDeck().filter((c) => !store.cards?.[c.key]).length} new` : `${pool.length} structures in this pool.`}</p>
+        <button class="btn primary wide" id="q-start" ${pool.length < 4 && s.mode !== "cards" ? "disabled" : ""}>${s.mode === "cards" ? "Start reviewing 🃏" : "Start round ▶"}</button>
         ${weak ? `<button class="btn wide" style="margin-top:8px" id="q-weak">🔁 Review my ${weak} weak spot${weak > 1 ? "s" : ""}</button>` : ""}
       </div>
       <div class="card"><h4 style="margin-top:0">Best round</h4><div class="score-big">${store.best || 0}</div></div>`;
@@ -83,7 +106,7 @@ export function initQuiz(app) {
       b.onclick = () => { s.diff = k; renderSetup(); };
       dEl.appendChild(b);
     }
-    el.querySelector("#q-start").onclick = () => startRound(false);
+    el.querySelector("#q-start").onclick = () => (s.mode === "cards" ? startCards() : startRound(false));
     el.querySelector("#q-weak")?.addEventListener("click", () => startRound(true));
   }
 
@@ -117,7 +140,7 @@ export function initQuiz(app) {
         const titles = shuffle(others.filter((k) => k.title !== kb.title)).map((k) => k.title);
         const uniq = [...new Set(titles)].slice(0, 3);
         if (uniq.length === 3) {
-          return { type: "facts", unit, prompt: `Which structure matches: <b>${esc(clip(kb[f]))}</b>`, label: f === "innervation" ? "Nerve supply" : f === "action" ? "Action" : "Function", answer: kb.title, options: shuffle([kb.title, ...uniq]) };
+          return { type: "facts", reverse: true, unit, prompt: `Which structure matches: <b>${esc(clip(kb[f]))}</b>`, label: f === "innervation" ? "Nerve supply" : f === "action" ? "Action" : "Function", answer: kb.title, options: shuffle([kb.title, ...uniq]) };
         }
       }
       return { type: "facts", unit, prompt: q(esc(kb.title)), label: kb.title, answer: kb[f], options: shuffle([kb[f], ...opts]) };
@@ -143,7 +166,7 @@ export function initQuiz(app) {
     for (const unit of picks) {
       if (qs.length >= ROUND) break;
       let type = st.settings.mode === "mix" ? ["find", "name", "facts"][(Math.random() * 3) | 0] : st.settings.mode;
-      if (review) type = ["find", "name"][(Math.random() * 2) | 0];
+      if (review || st.custom || type === "cards") type = ["find", "name"][(Math.random() * 2) | 0];
       if (type === "facts") {
         const q = factQuestion(unit, pool);
         if (q) { qs.push(q); continue; }
@@ -166,7 +189,8 @@ export function initQuiz(app) {
     const qs = buildQuestions(pool, review);
     if (qs.length < 3) { toast(st.settings.mode === "facts" ? "Not enough study notes for this pool — try Muscles" : "Pool too small — add systems"); return; }
     st.round = { qs, i: 0, score: 0, streak: 0, bestStreak: 0, correct: 0, missed: [], review };
-    for (const s of st.settings.systems) app.setLayer(s, true);
+    if (!st.custom) for (const s of st.settings.systems) app.setLayer(s, true);
+    for (const u of pool) app.ensureVisible(u.ids.slice(0, 1));
     app.viewer.showAll();
     ask();
   }
@@ -177,7 +201,8 @@ export function initQuiz(app) {
     q.answered = false;
     q.t0 = performance.now();
     app.viewer.clearMarks();
-    app.viewer.select([]);
+    app.viewer.clearSpotlight();
+    app.setLabels([]);
     app.selectedId = null;
     app.hoverEnabled = false; // no name-tooltips: that would give the answer away
     app.ensureVisible(q.unit.ids);
@@ -188,11 +213,14 @@ export function initQuiz(app) {
         <div class="row"><button class="btn" id="q-hint">💡 Hint (−50%)</button><button class="btn" id="q-skip">Show me</button></div>`;
       app.viewer.setView("front");
     } else if (q.type === "name") {
-      body = `<div class="prompt"><small>What is the highlighted structure?</small></div><div class="opt-grid" id="q-opts"></div>`;
-      app.viewer.select(q.unit.ids);
-      app.viewer.focusSmart(q.unit.ids);
+      body = `<div class="prompt"><small>What is the highlighted structure?</small></div>
+        <div class="row" style="margin-top:4px"><button class="btn" id="q-ctx" title="Show or fade the rest of the body">👁 Context</button><button class="btn" id="q-refocus">🎯 Re-center</button></div>
+        <div class="opt-grid" id="q-opts"></div>`;
+      spotlight(q.unit.ids);
     } else {
       body = `<div class="prompt" style="font-size:17px"><small>${esc(sysLabel(q.unit.sys))}</small>${q.prompt}</div><div class="opt-grid" id="q-opts"></div>`;
+      if (!q.reverse) spotlight(q.unit.ids, q.unit.kb?.title);
+      else app.viewer.setView("front");
     }
     el.innerHTML = `<div class="card">
       <div class="qhead"><span>Question ${r.i + 1}/${r.qs.length}</span><span>Score <b style="color:var(--text)">${r.score}</b></span>${r.streak > 1 ? `<span class="streak">🔥 ${r.streak}</span>` : "<span></span>"}</div>
@@ -215,6 +243,11 @@ export function initQuiz(app) {
       toast("Look where the camera points 👀");
     });
     el.querySelector("#q-skip")?.addEventListener("click", () => answer(false, null, null));
+    el.querySelector("#q-ctx")?.addEventListener("click", () => {
+      if (app.viewer.isolated) app.viewer.isolate(null);
+      else app.viewer.isolate(oneSide(q.unit.ids), 0.12);
+    });
+    el.querySelector("#q-refocus")?.addEventListener("click", () => spotlight(q.unit.ids));
     el.querySelector("#q-quit").onclick = finish;
     startTimer();
     app.openPanelMobile();
@@ -256,9 +289,10 @@ export function initQuiz(app) {
       else if (b === btn) b.classList.add("wrong");
       b.disabled = true;
     });
-    app.viewer.select(q.unit.ids);
-    app.viewer.mark(q.unit.ids, ok ? 0x3ddc84 : 0xff5d5d);
-    if (q.type !== "name") app.viewer.focusSmart(q.unit.ids);
+    const shown = q.clickedSide ? q.unit.ids.filter((id) => app.byId.get(id).side === q.clickedSide) : q.unit.ids;
+    spotlight(shown.length ? shown : q.unit.ids, pretty(q.unit.base), ok ? "ok" : "");
+    app.viewer.select([]);
+    app.viewer.mark(oneSide(shown.length ? shown : q.unit.ids), ok ? 0x3ddc84 : 0xff5d5d);
     const kb = q.unit.kb;
     const extra = kb && q.type !== "facts" ? `<div class="muted" style="font-weight:500;margin-top:4px">${esc(kb.summary || "")}</div>` : "";
     const fb = $("#q-fb");
@@ -287,11 +321,19 @@ export function initQuiz(app) {
     st.round = null;
     app.hoverEnabled = true;
     app.viewer.clearMarks();
-    app.viewer.select([]);
+    app.viewer.clearSpotlight();
+    app.setLabels([]);
+    app.viewer.setView("front");
     const answered = r.qs.filter((q) => q.answered).length;
     const acc = answered ? Math.round((r.correct / answered) * 100) : 0;
     const xp = Math.round(r.score / 8) + (acc === 100 && answered >= ROUND ? 50 : 0);
-    if (answered) { store.rounds++; store.best = Math.max(store.best || 0, r.score); saveStore(); addXP(xp); }
+    if (answered) {
+      store.rounds++;
+      store.best = Math.max(store.best || 0, r.score);
+      if (acc === 100 && answered >= ROUND) store.perfect = (store.perfect || 0) + 1;
+      saveStore();
+      addXP(xp);
+    }
     el.innerHTML = `<div class="card">
       <h2>${acc >= 90 ? "🏆 Outstanding!" : acc >= 70 ? "💪 Nice work!" : acc >= 40 ? "📈 Getting there" : "🧠 Keep studying"}</h2>
       <div class="score-big">${r.score}</div>
@@ -306,16 +348,17 @@ export function initQuiz(app) {
       m?.appendChild(b);
     }
     el.querySelector("#q-again").onclick = () => startRound(r.review);
-    el.querySelector("#q-setup").onclick = renderSetup;
+    el.querySelector("#q-setup").onclick = () => { st.custom = null; renderSetup(); };
   }
 
   function onPick(id) {
     const r = st.round;
+    if (st.cards) return; // flashcards: tapping just lets you rotate/explore the view
     if (!r) { if (id) app.selectPart(id); return; }
     const q = r.qs[r.i];
     if (q.type !== "find" || q.answered || !id) return;
     const p = app.byId.get(id);
-    if (p.base === q.unit.base) answer(true);
+    if (p.base === q.unit.base) { q.clickedSide = p.side; answer(true); }
     else {
       app.viewer.mark([id], 0xff5d5d);
       setTimeout(() => app.viewer.unmark(id), 700);
@@ -325,9 +368,138 @@ export function initQuiz(app) {
     }
   }
 
+  // ---------- lesson quiz ----------
+  function renderCustomSetup() {
+    const pool = unitPool();
+    el.innerHTML = `<div class="card">
+        <h2>🎯 Lesson quiz</h2>
+        <p><b>${esc(st.custom.title)}</b> — ${pool.length} structures</p>
+        <p class="muted">A mix of “find it” and “name it”. Each question spotlights the structure.</p>
+        <button class="btn primary wide" id="q-start">Start ▶</button>
+        <button class="btn wide" style="margin-top:8px" id="q-clear">Back to normal quizzes</button>
+      </div>`;
+    el.querySelector("#q-start").onclick = () => startRound(false);
+    el.querySelector("#q-clear").onclick = () => { st.custom = null; renderSetup(); };
+  }
+  app.startCustomQuiz = (bases, title) => {
+    st.custom = { bases: new Set(bases), title };
+    app.switchMode("quiz");
+    startRound(false);
+  };
+
+  // ---------- flashcards (spaced repetition) ----------
+  const DAY = 864e5;
+  function cardDeck() {
+    const map = new Map();
+    for (const p of app.parts) {
+      if (!p.kb || !st.settings.systems.has(p.system)) continue;
+      if (!map.has(p.kb.key)) map.set(p.kb.key, { key: p.kb.key, kb: p.kb, ids: [] });
+      map.get(p.kb.key).ids.push(p.id);
+    }
+    return [...map.values()];
+  }
+  const isDue = (c) => { const r = store.cards?.[c.key]; return r && r.due <= Date.now(); };
+  function startCards() {
+    const deck = cardDeck();
+    const due = shuffle(deck.filter(isDue));
+    const fresh = shuffle(deck.filter((c) => !store.cards?.[c.key])).sort((a, b) => Math.max(...b.ids.map((i) => app.byId.get(i).size)) - Math.max(...a.ids.map((i) => app.byId.get(i).size)));
+    const queue = [...due, ...fresh.slice(0, 10)];
+    if (!queue.length) return toast("All caught up! 🎉 Come back tomorrow.");
+    st.cards = { queue, done: 0, total: queue.length };
+    showCard();
+  }
+  function nextIntervals(rec) {
+    const iv = rec?.iv || 0, ease = rec?.ease || 2.5;
+    return {
+      again: 0,
+      hard: Math.max(1, Math.round(iv * 1.2) || 1),
+      good: iv ? Math.round(iv * ease) : 1,
+      easy: iv ? Math.round(iv * ease * 1.4) : 4,
+    };
+  }
+  function showCard() {
+    const c = st.cards.queue[0];
+    if (!c) return finishCards();
+    app.hoverEnabled = false;
+    spotlight(c.ids);
+    const fields = c.kb.kind === "muscle" ? "origin · insertion · action · nerve" : "function · key features";
+    el.innerHTML = `<div class="card flash">
+        <div class="qhead"><span>🃏 Flashcards</span><span>${st.cards.done}/${st.cards.total}</span></div>
+        <div class="q" style="margin-top:10px">What is the highlighted structure?</div>
+        <p class="muted">Say the name, then recall its ${fields}. Rotate the body if you need to.</p>
+        <button class="btn primary wide" id="c-flip">Show answer</button>
+      </div><button class="btn" id="c-quit">✕ Stop</button>`;
+    el.querySelector("#c-flip").onclick = () => flip(c);
+    el.querySelector("#c-quit").onclick = finishCards;
+    app.openPanelMobile();
+  }
+  function flip(c) {
+    const k = c.kb;
+    app.setLabels([{ id: biggest(oneSide(c.ids)), text: k.title }]);
+    const rows = [["Origin", k.origin], ["Insertion", k.insertion], ["Action", k.action], ["Nerve", k.innervation], ["Blood", k.blood], ["Function", k.function]]
+      .filter(([, v]) => v).map(([l, v]) => `<dt>${l}</dt><dd>${esc(v)}</dd>`).join("");
+    const iv = nextIntervals(store.cards?.[c.key]);
+    const fmt = (d) => (d === 0 ? "<1m" : d === 1 ? "1d" : d < 30 ? `${d}d` : `${Math.round(d / 30)}mo`);
+    el.innerHTML = `<div class="card">
+        <div class="qhead"><span>🃏 Flashcards</span><span>${st.cards.done}/${st.cards.total}</span></div>
+        <h2 style="margin-top:8px">${esc(k.title)}</h2>
+        ${k.summary ? `<p class="muted">${esc(k.summary)}</p>` : ""}
+        ${rows ? `<dl class="kv">${rows}</dl>` : ""}
+        ${k.features?.length ? `<p>${k.features.slice(0, 6).map(esc).join(" · ")}</p>` : ""}
+        ${k.clinical ? `<div class="note clin"><b>Clinical:</b> ${esc(k.clinical)}</div>` : ""}
+        <p class="muted" style="margin:12px 0 0;font-size:12px">How well did you know it?</p>
+        <div class="rate">
+          <button class="again" data-r="again">Again<small>${fmt(iv.again)}</small></button>
+          <button class="hard" data-r="hard">Hard<small>${fmt(iv.hard)}</small></button>
+          <button class="good" data-r="good">Good<small>${fmt(iv.good)}</small></button>
+          <button class="easy" data-r="easy">Easy<small>${fmt(iv.easy)}</small></button>
+        </div>
+      </div><button class="btn" id="c-quit">✕ Stop</button>`;
+    el.querySelectorAll(".rate button").forEach((b) => (b.onclick = () => rate(c, b.dataset.r)));
+    el.querySelector("#c-quit").onclick = finishCards;
+  }
+  function rate(c, r) {
+    const cards = (store.cards ||= {});
+    const rec = cards[c.key] || { iv: 0, ease: 2.5, reps: 0 };
+    const iv = nextIntervals(rec)[r];
+    rec.ease = Math.max(1.3, rec.ease + { again: -0.2, hard: -0.15, good: 0, easy: 0.15 }[r]);
+    rec.iv = iv;
+    rec.reps++;
+    rec.due = Date.now() + (iv === 0 ? 60e3 : iv * DAY);
+    cards[c.key] = rec;
+    store.reviews = (store.reviews || 0) + 1;
+    recordAnswer(app.byId.get(c.ids[0]).base, r !== "again");
+    st.cards.queue.shift();
+    if (r === "again") st.cards.queue.splice(Math.min(3, st.cards.queue.length), 0, c);
+    else st.cards.done++;
+    saveStore();
+    addXP(r === "again" ? 1 : 3);
+    app.setLabels([]);
+    showCard();
+  }
+  function finishCards() {
+    const done = st.cards?.done || 0;
+    st.cards = null;
+    app.viewer.clearSpotlight();
+    app.setLabels([]);
+    app.hoverEnabled = true;
+    app.viewer.setView("front");
+    const tomorrow = Object.values(store.cards || {}).filter((r) => r.due <= Date.now() + DAY).length;
+    el.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:48px">🃏</div>
+      <h2>${done} card${done === 1 ? "" : "s"} reviewed</h2>
+      <p class="muted">${tomorrow} due within a day. Short daily reviews beat cramming — spaced repetition moves cards you know further out.</p>
+      <button class="btn primary" id="c-back">Done</button></div>`;
+    el.querySelector("#c-back").onclick = renderSetup;
+  }
+
   app.modeHandlers.quiz = {
-    enter: () => { app.viewer.select([]); app.selectedId = null; st.round ? ask() : renderSetup(); },
-    exit: () => { clearTimer(); clearTimeout(st.autoNext); app.viewer.clearMarks(); app.hoverEnabled = true; if (st.round) st.round = null; },
+    enter: () => { app.viewer.select([]); app.selectedId = null; renderSetup(); },
+    exit: () => {
+      clearTimer(); clearTimeout(st.autoNext);
+      app.viewer.clearMarks(); app.viewer.clearSpotlight(); app.setLabels([]);
+      app.hoverEnabled = true;
+      st.round = null; st.cards = null;
+    },
     onPick,
   };
 }
