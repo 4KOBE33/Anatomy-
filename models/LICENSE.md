@@ -8,3 +8,11 @@ Licensed under the Creative Commons Attribution-Share Alike 2.1 Japan licence:
 https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en
 
 When reusing these files, credit "BodyParts3D, © The Database Center for Life Science, licensed under CC Attribution-Share Alike 2.1 Japan" and share derivatives under the same licence.
+
+## nerves.glb
+
+`nerves.glb` (and the `nerves` entries in `parts.json`) are derived from **Z-Anatomy**
+(https://www.z-anatomy.com/, https://github.com/LluisV/Z-Anatomy), licensed under the
+Creative Commons Attribution-ShareAlike 4.0 licence (https://creativecommons.org/licenses/by-sa/4.0/).
+Z-Anatomy is itself based on BodyParts3D. The meshes were simplified and re-positioned to
+line up with the BodyParts3D skeleton used by the rest of this app.

@@ -10,7 +10,7 @@ const MODES = [
   ["cards", "🃏 Flashcards", "Spaced repetition — review what's due today."],
 ];
 const DIFF = [["easy", "Big structures"], ["med", "Medium"], ["hard", "Everything (tiny too)"]];
-const QUIZ_SYSTEMS = ["muscular", "skeletal", "nervous", "cardio", "respiratory", "digestive", "urinary", "connective", "endocrine", "reproductive", "lymphatic"];
+const QUIZ_SYSTEMS = ["muscular", "skeletal", "nerves", "nervous", "cardio", "respiratory", "digestive", "urinary", "connective", "endocrine", "reproductive", "lymphatic"];
 const Q_TIME = 25;
 const ROUND = 10;
 
@@ -125,6 +125,9 @@ export function initQuiz(app) {
     ["insertion", (t) => `Where does the <b>${t}</b> insert?`],
     ["function", (t) => `What is the main function of the <b>${t}</b>?`],
     ["blood", (t) => `What is the main blood supply of the <b>${t}</b>?`],
+    ["roots", (t) => `What are the spinal roots of the <b>${t}</b>?`],
+    ["motor", (t) => `Which muscles does the <b>${t}</b> supply?`],
+    ["sensory", (t) => `What skin area does the <b>${t}</b> supply?`],
   ];
   function factQuestion(unit, pool) {
     const kb = unit.kb;
@@ -136,7 +139,7 @@ export function initQuiz(app) {
       const opts = [...new Set(others.map((k) => k[f]))].slice(0, 3);
       if (opts.length < 3) continue;
       // Reverse question sometimes: give the fact, ask for the structure.
-      if (Math.random() < 0.4 && (f === "action" || f === "function" || f === "innervation")) {
+      if (Math.random() < 0.4 && (f === "action" || f === "function" || f === "innervation" || f === "motor")) {
         const titles = shuffle(others.filter((k) => k.title !== kb.title)).map((k) => k.title);
         const uniq = [...new Set(titles)].slice(0, 3);
         if (uniq.length === 3) {
@@ -243,10 +246,7 @@ export function initQuiz(app) {
       toast("Look where the camera points 👀");
     });
     el.querySelector("#q-skip")?.addEventListener("click", () => answer(false, null, null));
-    el.querySelector("#q-ctx")?.addEventListener("click", () => {
-      if (app.viewer.isolated) app.viewer.isolate(null);
-      else app.viewer.isolate(oneSide(q.unit.ids), 0.12);
-    });
+    el.querySelector("#q-ctx")?.addEventListener("click", () => app.viewer.toggleContext());
     el.querySelector("#q-refocus")?.addEventListener("click", () => spotlight(q.unit.ids));
     el.querySelector("#q-quit").onclick = finish;
     startTimer();
@@ -422,7 +422,7 @@ export function initQuiz(app) {
     if (!c) return finishCards();
     app.hoverEnabled = false;
     spotlight(c.ids);
-    const fields = c.kb.kind === "muscle" ? "origin · insertion · action · nerve" : "function · key features";
+    const fields = c.kb.kind === "muscle" ? "origin · insertion · action · nerve" : c.kb.kind === "nerve" ? "roots · course · muscles supplied · injury sign" : "function · key features";
     el.innerHTML = `<div class="card flash">
         <div class="qhead"><span>🃏 Flashcards</span><span>${st.cards.done}/${st.cards.total}</span></div>
         <div class="q" style="margin-top:10px">What is the highlighted structure?</div>
@@ -436,7 +436,7 @@ export function initQuiz(app) {
   function flip(c) {
     const k = c.kb;
     app.setLabels([{ id: biggest(oneSide(c.ids)), text: k.title }]);
-    const rows = [["Origin", k.origin], ["Insertion", k.insertion], ["Action", k.action], ["Nerve", k.innervation], ["Blood", k.blood], ["Function", k.function]]
+    const rows = [["Origin", k.origin], ["Insertion", k.insertion], ["Action", k.action], ["Nerve", k.innervation], ["Blood", k.blood], ["Roots", k.roots], ["Motor", k.motor], ["Sensory", k.sensory], ["Function", k.function]]
       .filter(([, v]) => v).map(([l, v]) => `<dt>${l}</dt><dd>${esc(v)}</dd>`).join("");
     const iv = nextIntervals(store.cards?.[c.key]);
     const fmt = (d) => (d === 0 ? "<1m" : d === 1 ? "1d" : d < 30 ? `${d}d` : `${Math.round(d / 30)}mo`);

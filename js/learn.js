@@ -1,6 +1,9 @@
 // "Learn" mode: guided lessons. Each step spotlights structures in 3D (everything else fades),
 // labels them, and teaches relationships; finishing a lesson unlocks a quiz on exactly those structures.
-import { LESSONS } from "./data/lessons.js";
+import { LESSONS as LESSONS_MAIN } from "./data/lessons.js";
+let LESSONS_NERVES = [];
+try { ({ LESSONS_NERVES } = await import("./data/lessons_nerves.js")); } catch { /* not present */ }
+const LESSONS = [...LESSONS_MAIN, ...LESSONS_NERVES];
 import { pretty, store, saveStore, addXP, $, h, esc, toast } from "./util.js";
 
 const CATS = ["Upper limb", "Lower limb", "Trunk & back", "Head & neck", "Skeleton", "Heart & vessels", "Organs", "Brain"];
@@ -97,15 +100,12 @@ export function initLearn(app) {
     el.querySelector("#l-prev").onclick = () => { st.step--; showStep(); };
     el.querySelector("#l-next").onclick = () => { if (st.step + 1 < L.steps.length) { st.step++; showStep(); } else finish(); };
     el.querySelector("#l-exit").onclick = () => { st.lesson = null; renderList(); app.viewer.setView("front"); };
-    el.querySelector("#l-ctx").onclick = () => {
-      if (app.viewer.isolated) app.viewer.isolate(null);
-      else app.viewer.isolate([...ids, ...ctx], 0.13);
-    };
+    el.querySelector("#l-ctx").onclick = () => app.viewer.toggleContext();
     app.openPanelMobile();
   }
 
   function noteHtml(k) {
-    const rows = [["Origin", k.origin], ["Insertion", k.insertion], ["Action", k.action], ["Nerve", k.innervation], ["Function", k.function]]
+    const rows = [["Origin", k.origin], ["Insertion", k.insertion], ["Action", k.action], ["Nerve", k.innervation], ["Roots", k.roots], ["Motor", k.motor], ["Sensory", k.sensory], ["Function", k.function]]
       .filter(([, v]) => v).map(([l, v]) => `<dt>${l}</dt><dd>${esc(v)}</dd>`).join("");
     return `<div style="margin-top:10px"><b>${esc(k.title)}</b>${rows ? `<dl class="kv">${rows}</dl>` : `<p class="muted">${esc(k.summary || "")}</p>`}</div>`;
   }

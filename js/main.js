@@ -245,6 +245,7 @@ function updateLabels() {
 // ---------- explore panel ----------
 const FIELD_LABELS = [
   ["origin", "Origin"], ["insertion", "Insertion"], ["action", "Action"], ["innervation", "Nerve"], ["blood", "Blood supply"],
+  ["roots", "Roots"], ["motor", "Motor"], ["sensory", "Sensory"],
   ["function", "Function"], ["course", "Course"], ["supplies", "Supplies"], ["drains", "Drains"],
 ];
 function renderExplore() {
@@ -415,7 +416,7 @@ function switchMode(mode) {
   app.setLabels([]);
   app.modeHandlers[mode]?.enter?.();
   openPanelMobile();
-  history.replaceState(null, "", mode === "explore" ? location.pathname : `#${mode}`);
+  try { history.replaceState(null, "", mode === "explore" ? location.pathname : `#${mode}`); } catch { /* sandboxed viewer */ }
 }
 app.switchMode = switchMode;
 function handleHash() {

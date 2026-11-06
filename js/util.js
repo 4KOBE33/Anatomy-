@@ -1,10 +1,15 @@
 // Shared helpers: naming, KB lookup, regions, progress store, small DOM utils.
-import { KB, SYSTEM_INFO } from "./data/kb.js";
+import { KB as KB_MAIN, SYSTEM_INFO as SI_MAIN } from "./data/kb.js";
+// nerve notes are optional (the app still runs without the file)
+let KB_NERVES = [], NERVE_SYSTEM_INFO = { label: "Nerves", color: "#f2c94c", blurb: "Peripheral nerves, plexuses, spinal cord and cranial nerves." };
+try { ({ KB_NERVES, NERVE_SYSTEM_INFO } = await import("./data/kb_nerves.js")); } catch { /* not present */ }
+const KB = [...KB_MAIN, ...KB_NERVES];
+const SYSTEM_INFO = { ...SI_MAIN, nerves: NERVE_SYSTEM_INFO };
 
-export const SYSTEM_ORDER = ["skin", "muscular", "connective", "skeletal", "nervous", "cardio", "respiratory", "digestive", "urinary", "endocrine", "lymphatic", "reproductive"];
+export const SYSTEM_ORDER = ["skin", "muscular", "connective", "skeletal", "nerves", "nervous", "cardio", "respiratory", "digestive", "urinary", "endocrine", "lymphatic", "reproductive"];
 const FALLBACK_SYS = {
   skin: ["Skin & hair", "#d9a383"], muscular: ["Muscles", "#c0392b"], connective: ["Tendons & ligaments", "#d8d0b8"],
-  skeletal: ["Skeleton", "#e8dcc0"], nervous: ["Brain & nerves", "#e4b3a6"], cardio: ["Heart & vessels", "#d23a3a"],
+  skeletal: ["Skeleton", "#e8dcc0"], nervous: ["Brain & eye", "#e4b3a6"], nerves: ["Nerves", "#f2c94c"], cardio: ["Heart & vessels", "#d23a3a"],
   respiratory: ["Lungs & airway", "#e39ba1"], digestive: ["Digestive", "#d99482"], urinary: ["Urinary", "#e0b06a"],
   endocrine: ["Endocrine", "#c58a3a"], lymphatic: ["Lymphatic", "#8e3a66"], reproductive: ["Reproductive", "#d395a3"],
 };

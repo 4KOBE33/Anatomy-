@@ -31,6 +31,7 @@ const SYSTEM_STYLE = {
   reproductive: { color: 0xd395a3, roughness: 0.45, kind: "ORGAN", clearcoat: 0.4 },
   lymphatic: { color: 0x6e2a4c, roughness: 0.4, kind: "ORGAN", clearcoat: 0.5 },
   skin: { color: 0xd6a081, roughness: 0.55, kind: "SKIN", sheen: 0.6 },
+  nerves: { color: 0xf0cd55, roughness: 0.35, kind: "ORGAN", sheen: 0.5, clearcoat: 0.4 },
 };
 const NAME_COLORS = [
   [/vein|vena cava|coronary sinus|cardiac veins|veins of ventricle/, 0x2c58b0],
@@ -486,11 +487,33 @@ export class Viewer {
     this.invalidate();
   }
   hide(ids) { for (const id of ids) this.hidden.add(id); this._applyVisibility(); }
-  showAll() { this.hidden.clear(); this.isolated = null; this._applyVisibility(); }
-  isolate(ids, ghostOpacity = 0.08) {
+  showAll() { this.hidden.clear(); this.isolated = null; this.spotSystems = null; this._setXray([]); this._applyVisibility(); }
+  // Ghost everything except `ids`. With `systems`, parts of other systems are hidden outright
+  // (so e.g. skull + muscles don't stack up in front of a brain structure).
+  isolate(ids, ghostOpacity = 0.08, systems = null) {
     this.isolated = ids && ids.length ? new Set(ids) : null;
     this.ghostOpacity = ghostOpacity;
+    this.spotSystems = this.isolated && systems ? new Set(systems) : null;
+    if (!this.isolated) { this._setXray([]); this._spotTargets = null; }
     this._applyVisibility();
+  }
+  // Translucent copies of the target drawn on top of everything, so it shows through whatever is in front.
+  _setXray(ids) {
+    for (const m of this._xray || []) this.scene.remove(m);
+    this._xray = [];
+    if (!ids.length) return;
+    // drawn only where something solid sits in front of the target (GreaterDepth)
+    this._xrayMat ||= new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.45, depthFunc: THREE.GreaterDepth, depthWrite: false });
+    for (const id of ids) {
+      const p = this.parts.get(id);
+      if (!p) continue;
+      const m = new THREE.Mesh(p.mesh.geometry, this._xrayMat);
+      m.renderOrder = 1000;
+      m.raycast = () => {};
+      this.scene.add(m);
+      this._xray.push(m);
+    }
+    this.invalidate();
   }
 
   isVisible(id) {
@@ -500,16 +523,23 @@ export class Viewer {
 
   _applyVisibility() {
     for (const [id, p] of this.parts) {
-      const vis = this.systemsVisible.has(p.info.system) && !this.hidden.has(id);
+      const sys = p.info.system;
+      let vis = this.systemsVisible.has(sys) && !this.hidden.has(id);
       const ghost = !!this.isolated && !this.isolated.has(id);
+      if (ghost && this.spotSystems && !this.spotSystems.has(sys)) vis = false;
       p.mesh.visible = vis || (this.isolated?.has(id) ?? false);
       const m = p.mesh.material;
       m.userData.u.uGhost.value = ghost ? 1 : 0;
-      if (m.userData.isSkin) continue;
-      if (m.transparent !== ghost) m.needsUpdate = true;
-      m.transparent = ghost;
-      m.opacity = ghost ? this.ghostOpacity : 1;
+      if (m.userData.isSkin) { if (this.isolated) p.mesh.visible = false; continue; }
+      // spotlight targets render after the ghosts (transparent pass, higher order) so faded layers never wash them out
+      const target = !!this._spotTargets?.has(id);
+      p.mesh.renderOrder = target ? 10 : 0;
+      const wantT = ghost || target;
+      if (m.transparent !== wantT) m.needsUpdate = true;
+      m.transparent = wantT;
+      m.opacity = ghost ? this.ghostOpacity * (sys === "skeletal" && this.spotSystems ? 0.6 : 1) : 1;
       m.depthWrite = !ghost;
+      if (target) m.opacity = 1;
     }
     this.invalidate();
   }
@@ -561,16 +591,34 @@ export class Viewer {
   }
 
   // Fade everything except `ids` (+ optional solid `context`), highlight `ids`, and fly the camera in.
-  spotlight(ids, { context = [], pad = 1.45, ghost = 0.1, highlight = true } = {}) {
+  spotlight(ids, { context = [], pad = 1.45, ghost = 0.1, highlight = true, xray = true } = {}) {
     if (!ids.length) return;
     this.isolated = null;
+    this.spotSystems = null;
     this._applyVisibility();
     const dir = this.bestDir(ids);
-    this.isolate([...ids, ...context], ghost);
+    const systems = new Set(["skeletal"]);
+    for (const id of [...ids, ...context]) { const p = this.parts.get(id); if (p) systems.add(p.info.system); }
+    // muscles give useful context for nerves and vessels in the limbs
+    if (systems.has("nerves") || systems.has("cardio")) systems.add("muscular");
+    const g = systems.has("nervous") && this.parts.get(ids[0])?.info.system === "nervous" ? Math.min(ghost, 0.05) : ghost;
+    this._lastSpot = { keep: [...ids, ...context], ghost: g, systems: [...systems], xray: xray ? ids : [], targets: ids };
+    this._spotTargets = new Set(ids);
+    this.isolate(this._lastSpot.keep, g, this._lastSpot.systems);
+    this._setXray(this._lastSpot.xray);
     if (highlight) this.select(ids);
     this.focus(ids, { dir, pad });
   }
-  clearSpotlight() { this.isolate(null); this.select([]); }
+  clearSpotlight() { this._lastSpot = null; this.isolate(null); this.select([]); }
+  // Flip between "spotlight" and "whole body" without moving the camera.
+  toggleContext() {
+    if (this.isolated) { this.isolate(null); return; }
+    const l = this._lastSpot;
+    if (!l) return;
+    this._spotTargets = new Set(l.targets);
+    this.isolate(l.keep, l.ghost, l.systems);
+    this._setXray(l.xray);
+  }
 
   // ---------- camera ----------
   boundsOf(ids) {

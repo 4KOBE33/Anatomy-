@@ -199,7 +199,7 @@ export const PAIN_REGIONS = [
     id: "neck",
     name: "Neck",
     keywords: ["neck", "stiff neck", "neck stiff", "crick", "crick in neck", "wry neck", "torticollis", "cervical", "traps", "trap", "upper traps", "trapezius", "text neck", "tech neck", "desk", "posture", "computer", "phone", "whiplash", "slept funny", "slept wrong", "slept on it wrong", "base of neck", "side of neck", "neck and shoulder", "cant turn head", "turning head", "turn my head"],
-    structures: ["descending part of trapezius", "levator scapulae", "sternocleidomastoid", "scalenus", "splenius", "semispinalis cervicis", "longissimus cervicis", "longus colli", "cervical vertebra"],
+    structures: ["roots of brachial plexus", "descending part of trapezius", "levator scapulae", "sternocleidomastoid", "scalenus", "splenius", "semispinalis cervicis", "longissimus cervicis", "longus colli", "cervical vertebra"],
     causes: [
       { name: "Muscle strain / postural overload", note: "Long periods looking at a screen or phone can tire the neck and upper trapezius muscles." },
       { name: "Acute wry neck", note: "Waking with a stuck, painful neck that will not turn one way is common and usually settles within days to a couple of weeks." },
@@ -540,7 +540,7 @@ export const PAIN_REGIONS = [
     id: "elbow-outer",
     name: "Elbow, outer (tennis elbow)",
     keywords: ["tennis elbow", "elbow", "elbows", "outer elbow", "outside elbow", "outside of elbow", "lateral elbow", "lateral epicondylitis", "lateral epicondyle", "epicondylitis", "elbow tendonitis", "elbow tendinitis", "forearm", "forearms", "gripping", "grip", "mouse elbow", "lifting kettle", "turning door handle", "screwdriver"],
-    structures: ["extensor carpi radialis brevis", "extensor carpi radialis longus", "extensor carpi ulnaris", "supinator", "brachioradialis", "anconeus", "humerus", "radius"],
+    structures: ["deep branch of radial nerve", "extensor carpi radialis brevis", "extensor carpi radialis longus", "extensor carpi ulnaris", "supinator", "brachioradialis", "anconeus", "humerus", "radius"],
     causes: [
       { name: "Lateral elbow tendinopathy", note: "Overload of the wrist-extensor tendons from gripping, lifting, typing or racket sports. It is common at ages 35 to 55 and most people improve within a year." },
       { name: "Nerve irritation", note: "A nerve near the outer forearm, or the neck, can occasionally cause similar pain, often with aching further down the forearm." },
@@ -613,7 +613,7 @@ export const PAIN_REGIONS = [
     id: "elbow-inner",
     name: "Elbow, inner (golfer's elbow)",
     keywords: ["golfers elbow", "golfer elbow", "inner elbow", "inside elbow", "inside of elbow", "inside of my elbow", "medial elbow", "medial epicondylitis", "medial epicondyle", "funny bone", "climbers elbow", "throwing elbow", "pitchers elbow", "ulnar nerve", "pinky tingling", "little finger tingling", "ring finger numb"],
-    structures: ["flexor carpi radialis", "flexor carpi ulnaris", "pronator teres", "palmaris longus", "flexor digitorum superficialis", "humerus", "ulna"],
+    structures: ["ulnar nerve", "flexor carpi radialis", "flexor carpi ulnaris", "pronator teres", "palmaris longus", "flexor digitorum superficialis", "humerus", "ulna"],
     causes: [
       { name: "Medial elbow tendinopathy", note: "Overload of the wrist-flexor tendons from gripping, throwing, climbing, golf or lifting." },
       { name: "Ulnar nerve irritation", note: "Tingling in the ring and little fingers can come from the 'funny bone' nerve, often from leaning on the elbow or keeping it bent for long." },
@@ -695,7 +695,7 @@ export const PAIN_REGIONS = [
     id: "wrist-hand",
     name: "Wrist & hand",
     keywords: ["wrist", "wrists", "hand", "hands", "carpal tunnel", "carpal", "numb fingers", "numb hand", "hand numb", "tingling fingers", "fingers tingling", "pins and needles", "thumb", "thumbs", "texting thumb", "de quervain", "de quervains", "typing", "keyboard", "mouse", "gaming", "texting", "finger", "fingers", "knuckle", "knuckles", "rsi", "repetitive strain", "trigger finger", "palm", "wrist sprain", "sprained wrist"],
-    structures: ["flexor retinaculum of wrist", "flexor digitorum superficialis", "flexor digitorum profundus", "flexor pollicis longus", "abductor pollicis longus", "extensor pollicis brevis", "opponens pollicis", "lumbricals of hand", "scaphoid", "lunate", "radius", "ulna", "first metacarpal bone"],
+    structures: ["median nerve", "ulnar nerve", "flexor retinaculum of wrist", "flexor digitorum superficialis", "flexor digitorum profundus", "flexor pollicis longus", "abductor pollicis longus", "extensor pollicis brevis", "opponens pollicis", "lumbricals of hand", "scaphoid", "lunate", "radius", "ulna", "first metacarpal bone"],
     causes: [
       { name: "Overuse of forearm tendons", note: "Long spells of typing, mouse use, gaming or phone use can irritate the tendons that move the wrist and fingers." },
       { name: "Carpal tunnel-type symptoms", note: "Tingling or numbness in the thumb, index and middle fingers, often worse at night, can come from pressure on the median nerve at the wrist." },
@@ -955,7 +955,7 @@ export const PAIN_REGIONS = [
     id: "lower-back",
     name: "Lower back",
     keywords: ["lower back", "low back", "back", "lumbar", "lower back pain", "lbp", "lumbago", "slipped disc", "slipped disk", "disc", "disk", "bulging disc", "herniated disc", "back spasm", "pulled back", "threw out my back", "threw my back out", "put my back out", "bending over", "bend over", "bending down", "lifting heavy", "picking up", "si joint", "sacroiliac", "back stiff", "stiff back"],
-    structures: ["iliocostalis lumborum", "longissimus thoracis", "multifidus", "quadratus lumborum", "lumbar vertebra", "psoas major", "gluteus maximus", "sacrum", "lumbar rotator", "interspinales lumborum"],
+    structures: ["cauda equina", "sciatic nerve", "iliocostalis lumborum", "longissimus thoracis", "multifidus", "quadratus lumborum", "lumbar vertebra", "psoas major", "gluteus maximus", "sacrum", "lumbar rotator", "interspinales lumborum"],
     causes: [
       { name: "Muscle strain / non-specific low back pain", note: "By far the most common type. Muscles, joints and ligaments become sensitive after lifting, bending or a long spell of sitting, and it usually improves within a few weeks." },
       { name: "Disc-related pain", note: "Discs can bulge and irritate nearby tissues; this often settles on its own, and disc bulges are common on scans of people without pain." },
@@ -1041,7 +1041,7 @@ export const PAIN_REGIONS = [
     id: "buttock-sciatic",
     name: "Buttock & sciatic-type pain",
     keywords: ["sciatica", "sciatic", "sciatic nerve", "buttock", "buttocks", "butt", "bum", "butt cheek", "glute", "glutes", "piriformis", "pain down leg", "down leg", "down my leg", "down the back of my leg", "going down my leg", "shooting down leg", "shooting pain leg", "radiating leg", "leg tingling", "numb leg", "leg numb", "nerve pain leg", "pins and needles leg", "pins and needles foot", "tailbone", "coccyx", "sitting bone", "sit bone", "deep buttock"],
-    structures: ["piriformis", "gluteus maximus", "gluteus medius", "gemellus", "obturator internus", "quadratus femoris", "sacrum", "fifth lumbar vertebra", "long head of biceps femoris", "hip bone"],
+    structures: ["sciatic nerve", "pudendal nerve", "piriformis", "gluteus maximus", "gluteus medius", "gemellus", "obturator internus", "quadratus femoris", "sacrum", "fifth lumbar vertebra", "long head of biceps femoris", "hip bone"],
     causes: [
       { name: "Sciatica (irritated nerve root)", note: "An irritated nerve in the lower back can cause pain, tingling or numbness down the back of the leg, often worse than the back pain itself. It often improves within 6 to 12 weeks." },
       { name: "Deep buttock / piriformis pain", note: "Tight or irritated deep hip muscles can press on or sensitise the sciatic nerve, often worse with sitting." },
@@ -1215,7 +1215,7 @@ export const PAIN_REGIONS = [
     id: "hip-front-groin",
     name: "Hip front & groin",
     keywords: ["groin", "groin strain", "groin pull", "pulled groin", "strained groin", "hip flexor", "hip flexors", "front of hip", "front hip", "front of my hip", "inner thigh", "adductor", "adductors", "psoas", "iliopsoas", "hip impingement", "fai", "labrum", "labral tear", "pubic", "pubic bone", "osteitis pubis", "sports hernia", "inguinal", "kicking", "hip pinch", "pinching in hip", "deep hip"],
-    structures: ["iliacus", "psoas major", "rectus femoris", "sartorius", "adductor longus", "adductor brevis", "adductor magnus", "pectineus", "gracilis", "inguinal ligament", "hip bone"],
+    structures: ["lateral femoral cutaneous nerve", "femoral nerve", "iliacus", "psoas major", "rectus femoris", "sartorius", "adductor longus", "adductor brevis", "adductor magnus", "pectineus", "gracilis", "inguinal ligament", "hip bone"],
     causes: [
       { name: "Adductor (groin) strain", note: "Common in sports with kicking, sprinting and quick changes of direction such as football and hockey." },
       { name: "Hip flexor strain or tendinopathy", note: "Pain at the front of the hip with sprinting, kicking or lifting the knee." },
@@ -1391,7 +1391,7 @@ export const PAIN_REGIONS = [
     id: "back-thigh",
     name: "Back of thigh (hamstring strain)",
     keywords: ["hamstring", "hamstrings", "hammy", "hammies", "hamstring pulled", "pulled hamstring", "hamstring strain", "strained hamstring", "hamstring tear", "torn hamstring", "tight hamstrings", "back of thigh", "back thigh", "back of my thigh", "back of leg", "back of my leg", "back leg", "back of knee", "back of my knee", "behind knee", "behind my knee", "biceps femoris", "sprinting"],
-    structures: ["biceps femoris", "semitendinosus", "semimembranosus", "adductor magnus", "popliteus"],
+    structures: ["sciatic nerve", "biceps femoris", "semitendinosus", "semimembranosus", "adductor magnus", "popliteus"],
     causes: [
       { name: "Hamstring strain", note: "A sudden sharp pain at the back of the thigh, often while sprinting or overstretching." },
       { name: "High hamstring tendinopathy", note: "A deep ache near the sitting bone, worse when sitting or bending forward." },
@@ -1564,7 +1564,7 @@ export const PAIN_REGIONS = [
     id: "knee-outer",
     name: "Knee, outer side (IT band)",
     keywords: ["outer knee", "outside knee", "outside of knee", "outside of my knee", "lateral knee", "side of knee", "side of my knee", "it band", "itb", "itbs", "it band syndrome", "iliotibial", "iliotibial band", "itb syndrome", "outer thigh", "outside of thigh", "outside thigh"],
-    structures: ["iliotibial tract", "tensor fasciae latae", "vastus lateralis", "biceps femoris", "gluteus maximus", "gluteus medius"],
+    structures: ["common fibular nerve", "iliotibial tract", "tensor fasciae latae", "vastus lateralis", "biceps femoris", "gluteus maximus", "gluteus medius"],
     causes: [
       { name: "IT band syndrome", note: "Common in runners and cyclists: pain on the outer knee that starts after a set distance and is worse downhill." },
       { name: "Lateral ligament or meniscus injury", note: "Pain after a twist or blow, sometimes with swelling, clicking or locking." },
@@ -2086,7 +2086,7 @@ export const PAIN_REGIONS = [
     id: "heel-sole",
     name: "Heel & sole (plantar fascia)",
     keywords: ["heel", "heels", "heel pain", "heel pain morning", "heel pain in the morning", "plantar", "plantar fasciitis", "plantar fascia", "plantar fasciitus", "planter fasciitis", "plantar faciitis", "plantar fascitis", "fasciitis", "sole", "sole of foot", "sole of my foot", "bottom of foot", "bottom of my foot", "bottom foot", "arch", "arches", "arch pain", "foot", "feet", "first steps", "first step", "heel spur", "flat feet", "flat foot"],
-    structures: ["calcaneus", "flexor digitorum brevis", "abductor hallucis", "abductor digiti minimi of foot", "long plantar ligament", "flexor accessorius", "calcaneal tendon"],
+    structures: ["medial plantar nerve", "lateral plantar nerve", "calcaneus", "flexor digitorum brevis", "abductor hallucis", "abductor digiti minimi of foot", "long plantar ligament", "flexor accessorius", "calcaneal tendon"],
     causes: [
       { name: "Plantar heel pain (plantar fasciitis)", note: "Pain under the heel, worst with the first steps in the morning or after sitting, often easing as you move." },
       { name: "Heel fat pad irritation", note: "A bruised feeling in the middle of the heel, worse on hard floors or barefoot." },
