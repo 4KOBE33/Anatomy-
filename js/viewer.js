@@ -858,6 +858,7 @@ export class Viewer {
       this._dirty = true;
     }
     this._hoverTick?.();
+    if (this.onTick) { this.onTick(dt); this._dirty = true; } // per-frame animation hook (muscle actions)
     if (this.controls.update()) this._dirty = true;
     if (this.marks.size) this._dirty = true; // pulsing highlight
     if (!this._dirty) return;

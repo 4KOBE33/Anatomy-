@@ -7,6 +7,7 @@ An interactive **3D human anatomy atlas** that runs in the browser, built for st
 - **Realistic rendering.** Muscle-fibre surface detail that follows each muscle's fibre direction, white tendons where muscles taper, wet-looking organs, and ambient-occlusion shadows in the creases. There's a ⚡ Fast mode for older phones.
 - **Peripheral nerves.** A Nerves layer with 244 structures: the brachial plexus and every major arm and leg nerve down to the digital branches, the lumbosacral plexus, the spinal cord and cauda equina, the intercostal nerves, the sympathetic trunk and cranial nerves III–XII.
 - **Explore.** Rotate, zoom and tap anything. Turn body systems on and off, **hide** muscles to peel down to deeper layers, **isolate** a structure, and search all 900+ names.
+- **Muscle actions (12 animations).** The skeleton moves at its real joints while the muscles that produce the movement deform with it and bulge as they shorten. Prime movers glow red and antagonists blue, swapping as the movement reverses. Movements: jaw open/close, shoulder abduction/adduction, flexion/extension and rotation, elbow flexion/extension, forearm pronation/supination, wrist flexion/extension, hip flexion/extension and abduction/adduction, knee flexion/extension, ankle plantar/dorsiflexion, and foot inversion/eversion. You can play, pause, scrub and change speed, and any muscle's info panel has a "🎬 See it move" button. Joint pivots and axes are measured from the bones themselves (e.g. the ankle axis runs between the malleolar tips).
 - **Cross-sections.** Slice the body in the transverse, sagittal or coronal plane and slide the cut through it.
 - **Guided lessons (33).** Short walkthroughs such as the rotator cuff, quadriceps, leg compartments, coronary arteries, the brain and the visual pathway. Each step fades everything else, flies the camera to the structures and labels them. Finishing a lesson unlocks a quiz on exactly those structures.
 - **Quiz modes:**
@@ -57,7 +58,8 @@ index.html            app shell (import map for three.js)
 css/style.css
 js/main.js            boot, layers, search, browse tree, labels, Explore mode
 js/viewer.js          three.js scene: materials/shaders, AO, picking (BVH), spotlight, slicing, camera
-js/learn.js           Learn mode (guided lessons)
+js/learn.js           Learn mode (guided lessons + muscle-action player)
+js/motion.js          joint rig from bone landmarks, muscle deformation, movement library
 js/quiz.js            quiz modes, flashcards (spaced repetition), scoring, mastery tracking
 js/exam.js            timed practical exam: station staging, dissection, pins, answer grading
 js/painui.js          "What hurts?" mode + routine player

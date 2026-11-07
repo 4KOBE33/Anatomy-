@@ -5,13 +5,15 @@ let LESSONS_NERVES = [];
 try { ({ LESSONS_NERVES } = await import("./data/lessons_nerves.js")); } catch { /* not present */ }
 const LESSONS = [...LESSONS_MAIN, ...LESSONS_NERVES];
 import { pretty, store, saveStore, addXP, $, h, esc, toast } from "./util.js";
+import { initMotion } from "./motion.js";
 
 const CATS = ["Upper limb", "Lower limb", "Trunk & back", "Head & neck", "Skeleton", "Heart & vessels", "Organs", "Brain"];
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export function initLearn(app) {
   const el = $("#panel-learn");
-  const st = { lesson: null, step: 0 };
+  const st = { lesson: null, step: 0, move: null };
+  const motion = (app.motion = initMotion(app));
 
   // Whole-word matching so "ulna" doesn't grab "flexor carpi ulnaris"; falls back to substring if nothing matches.
   function matchIds(subs = [], side = "right", category = "") {
@@ -41,6 +43,8 @@ export function initLearn(app) {
 
   // ---------- list ----------
   function renderList() {
+    motion.stop();
+    st.move = null;
     app.viewer.clearSpotlight();
     app.setLabels([]);
     const done = Object.values(store.lessons || {}).filter((l) => l.done).length;
@@ -48,7 +52,17 @@ export function initLearn(app) {
         <h2>Guided lessons</h2>
         <p class="muted">${LESSONS.length} bite-sized walkthroughs. Each step lights up the structures in 3D and fades everything else, then you can quiz yourself on exactly that group.</p>
         <div class="stats"><div><b>${done}/${LESSONS.length}</b>Completed</div><div><b>${LESSONS.reduce((a, l) => a + l.steps.length, 0)}</b>Steps</div><div><b>+50</b>XP each</div></div>
-      </div><div id="l-list"></div>`;
+      </div>
+      <div class="card"><h4 style="margin-top:0">🎬 Muscle actions</h4>
+        <p class="muted" style="font-size:13px">Watch the skeleton move while the muscles that do it contract — prime movers glow red, antagonists blue.</p>
+        <div class="move-grid" id="l-moves"></div></div>
+      <div id="l-list"></div>`;
+    const mg = el.querySelector("#l-moves");
+    for (const m of motion.MOVES) {
+      const b = h(`<button class="move-btn"><b>${esc(m.name)}</b><span class="meta">${esc(m.region)}${store.movesSeen?.[m.id] ? " · ✓" : ""}</span></button>`);
+      b.onclick = () => playMove(m);
+      mg.appendChild(b);
+    }
     const list = el.querySelector("#l-list");
     for (const cat of CATS) {
       const ls = LESSONS.filter((l) => l.category === cat);
@@ -64,6 +78,55 @@ export function initLearn(app) {
       }
     }
   }
+
+  // ---------- muscle-action player ----------
+  function musclesLine(group) {
+    return group.muscles.map((n) => {
+      const id = app.parts.find((p) => new RegExp(`(^|\\s)${reEsc(n)}($|\\s)`).test(p.base))?.id;
+      const kb = id && app.byId.get(id).kb;
+      return kb && kb.title.toLowerCase() === n.toLowerCase() ? kb.title : kb && !kb.match?.includes(n) && n.includes(kb.title.toLowerCase()) ? pretty(n) : kb?.title || pretty(n);
+    }).filter((x, i, a) => a.indexOf(x) === i).join(", ");
+  }
+  function playMove(m) {
+    st.lesson = null;
+    st.move = m;
+    const others = motion.MOVES.filter((x) => x.region === m.region && x !== m);
+    el.innerHTML = `<div class="card">
+        <div class="qhead"><span>🎬 Muscle action · ${esc(m.region)}</span><span id="mv-angle" class="angle">0°</span></div>
+        <h2 style="margin-top:6px">${esc(m.name)}</h2>
+        <div class="phase" id="mv-phase"></div>
+        <div class="row" style="align-items:center">
+          <button class="btn primary" id="mv-play">⏸ Pause</button>
+          <div class="seg-pick small" id="mv-speed"><button data-s="0.5">½×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button></div>
+        </div>
+        <label class="slider-row" style="margin-top:10px">Position<input type="range" id="mv-scrub" min="0" max="1000" value="0" /></label>
+        <label class="check-row"><input type="checkbox" id="mv-ant" checked /> Show antagonists in blue</label>
+        <dl class="kv">
+          <dt>${esc(m.a.label)}</dt><dd>${esc(musclesLine(m.a))}</dd>
+          <dt>${esc(m.b.label)}</dt><dd>${esc(musclesLine(m.b))}</dd>
+          <dt>Range shown</dt><dd>${m.range[0]}° to ${m.range[1]}°${m.pre ? " (elbow held at 90°)" : ""}</dd>
+        </dl>
+        <p style="margin-top:10px">${esc(m.text)}</p>
+        ${others.length ? `<h4>More ${esc(m.region.toLowerCase())} actions</h4><div class="parts-list">${others.map((o) => `<button data-mv="${o.id}">${esc(o.name)}</button>`).join("")}</div>` : ""}
+      </div><button class="btn" id="mv-exit">✕ All lessons</button>`;
+    const phaseEl = el.querySelector("#mv-phase"), angleEl = el.querySelector("#mv-angle"), scrub = el.querySelector("#mv-scrub"), play = el.querySelector("#mv-play");
+    motion.on(
+      (group) => { phaseEl.innerHTML = `<span class="ph-dot"></span><b>${esc(group.label)}</b> — prime movers: ${esc(musclesLine(group))}`; },
+      (u) => { angleEl.textContent = `${motion.angle()}°`; if (motion.playing()) scrub.value = Math.round(u * 1000); }
+    );
+    motion.start(m); // restart so the first phase label goes through the callback
+    play.onclick = () => { const p = !motion.playing(); motion.setPlaying(p); play.textContent = p ? "⏸ Pause" : "▶ Play"; };
+    scrub.oninput = () => { motion.scrub(scrub.value / 1000); play.textContent = "▶ Play"; };
+    el.querySelectorAll("#mv-speed button").forEach((b) => (b.onclick = () => {
+      motion.setSpeed(+b.dataset.s);
+      el.querySelectorAll("#mv-speed button").forEach((x) => x.classList.toggle("on", x === b));
+    }));
+    el.querySelector("#mv-ant").onchange = (e) => motion.setShowAntagonists(e.target.checked);
+    el.querySelectorAll("[data-mv]").forEach((b) => (b.onclick = () => playMove(motion.MOVES.find((x) => x.id === b.dataset.mv))));
+    el.querySelector("#mv-exit").onclick = () => { renderList(); app.viewer.setView("front"); };
+    app.openPanelMobile();
+  }
+  app.playMove = (m) => { app.switchMode("learn"); playMove(m); };
 
   // ---------- player ----------
   function start(lesson) {
@@ -154,8 +217,8 @@ export function initLearn(app) {
   }
 
   app.modeHandlers.learn = {
-    enter: () => (st.lesson ? showStep() : renderList()),
-    exit: () => { app.viewer.clearSpotlight(); app.setLabels([]); },
+    enter: () => (st.lesson ? showStep() : st.move ? null : renderList()),
+    exit: () => { motion.stop(); st.move = null; app.viewer.clearSpotlight(); app.setLabels([]); },
     onPick: (id) => {
       if (!id) return;
       const p = app.byId.get(id);

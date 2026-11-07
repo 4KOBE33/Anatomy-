@@ -316,6 +316,7 @@ function renderExplore() {
       <button class="btn" id="b-iso">🔍 Isolate</button>
       ${sides.length === 2 ? `<button class="btn" id="b-both">↔ Both sides</button>` : ""}
       <button class="btn" id="b-hurt">🤕 Hurts here?</button>
+      ${app.motion?.movesFor(p.base).length ? `<button class="btn" id="b-move">🎬 See it move</button>` : ""}
     </div></div>`;
   el.innerHTML = html;
   el.querySelectorAll(".parts-list button").forEach((b) => (b.onclick = () => { selectPart(b.dataset.id); app.viewer.focusSmart([b.dataset.id]); }));
@@ -324,6 +325,7 @@ function renderExplore() {
   el.querySelector("#b-iso").onclick = () => app.viewer.spotlight(groupIdsFor(p), { highlight: false, pad: 1.8 });
   el.querySelector("#b-both")?.addEventListener("click", () => { const ids = group.map((q) => q.id); app.viewer.select([id], ids); app.viewer.isolate(ids); app.viewer.focus(ids); });
   el.querySelector("#b-hurt").onclick = () => { switchMode("pain"); app.pain?.fromPart(id); };
+  el.querySelector("#b-move")?.addEventListener("click", () => app.playMove(app.motion.movesFor(p.base)[0]));
 }
 
 function hideSelected() {
