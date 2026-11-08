@@ -8,6 +8,9 @@ const PRESETS = [
   { id: "lower", name: "Lower limb practical", desc: "20 stations · 60 s · muscles, bones, nerves", n: 20, secs: 60, systems: ["muscular", "skeletal", "nerves"], region: "lower", min: 0.05, second: true },
   { id: "trunk", name: "Thorax, abdomen & back", desc: "20 stations · 60 s · organs, vessels, back muscles", n: 20, secs: 60, systems: ["muscular", "cardio", "respiratory", "digestive", "urinary", "skeletal"], region: "trunk", min: 0.06, second: true },
   { id: "neuro", name: "Neuroanatomy", desc: "15 stations · 60 s · brain, cranial & spinal nerves", n: 15, secs: 60, systems: ["nervous", "nerves"], region: "all", min: 0.03, second: false },
+  { id: "f-pelvis", body: "female", name: "Female pelvis & reproductive", desc: "15 stations · 60 s · uterus, tubes, ovaries, ligaments, pelvis, bladder", n: 15, secs: 60, systems: ["reproductive", "urinary", "skeletal"], region: "all", min: 0.02, second: false },
+  { id: "f-organs", body: "female", name: "Organs & vessels", desc: "20 stations · 60 s · heart, lungs, liver, gut, kidneys, vessels", n: 20, secs: 60, systems: ["cardio", "respiratory", "digestive", "urinary", "lymphatic"], region: "all", min: 0.03, second: false },
+  { id: "f-neuro", body: "female", name: "Brain regions", desc: "15 stations · 60 s · detailed brain atlas, spinal cord, eye", n: 15, secs: 60, systems: ["nervous", "nerves"], region: "all", min: 0.015, second: false },
   { id: "full", name: "Full-body final", desc: "40 stations · 60 s · everything", n: 40, secs: 60, systems: ["muscular", "skeletal", "nerves", "cardio", "respiratory", "digestive", "urinary", "nervous"], region: "all", min: 0.05, second: true },
 ];
 const PASS = 70;
@@ -166,7 +169,7 @@ export function initExam(app, el, back) {
         <p class="muted" style="font-size:12px">Best: <b>${best}%</b> · ${hist.length} exam${hist.length > 1 ? "s" : ""} taken</p></div>` : ""}
       <button class="btn" id="x-back">◀ Other quiz modes</button>`;
     const box = el.querySelector("#x-presets");
-    for (const p of PRESETS) {
+    for (const p of PRESETS.filter((x) => (x.body || "male") === app.body)) {
       const b = h(`<button class="opt">${esc(p.name)}<br><span class="muted" style="font-weight:500;font-size:12px">${esc(p.desc)}</span></button>`);
       b.onclick = () => start(p, el.querySelector("#x-second").checked);
       box.appendChild(b);

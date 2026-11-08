@@ -26,6 +26,12 @@ export function initQuiz(app) {
   };
   const el = $("#panel-quiz");
   const exam = initExam(app, el, () => { st.settings.mode = "find"; renderSetup(); });
+  app.bodyHooks.push((body) => {
+    st.custom = null;
+    st.settings.systems = new Set(body === "female" ? ["reproductive", "urinary", "digestive"] : ["muscular"]);
+    st.settings.region = "all";
+    st.settings.diff = body === "female" ? "med" : "easy";
+  });
 
   // Show one side only (the body's right when paired) so the camera can get close.
   function oneSide(ids) {

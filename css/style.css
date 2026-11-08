@@ -294,3 +294,13 @@ a { color: var(--accent2); }
 .phase { display: flex; gap: 8px; align-items: baseline; background: #2a1715; border: 1px solid #6a2a24; border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 13px; }
 .ph-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4a3d; box-shadow: 0 0 10px #ff4a3d; flex: none; align-self: center; }
 .angle { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 800; font-size: 14px; }
+
+/* ---------- body switch ---------- */
+.body-btn { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-weight: 700; white-space: nowrap; }
+.body-btn .sym { font-size: 17px; line-height: 1; color: var(--accent2); }
+.body-btn:hover { border-color: var(--accent2); }
+
+/* ---------- exercise demos ---------- */
+.demo-btn { margin-top: 8px; font-size: 12px; padding: 6px 10px; }
+.demo-note { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; margin-top: 8px; }
+.card.routine ol { margin: 8px 0 4px; padding-left: 20px; }

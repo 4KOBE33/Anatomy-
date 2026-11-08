@@ -2,6 +2,10 @@
 // common causes, red flags, and a guided exercise routine with timers.
 import { PAIN_REGIONS, GLOBAL_RED_FLAGS, DISCLAIMER, matchPain } from "./data/pain.js";
 import { pretty, store, saveStore, addXP, $, h, esc, toast } from "./util.js";
+let POSES = {};
+try { ({ POSES } = await import("./data/exercise_poses.js")); } catch { /* demos not available */ }
+
+const MODE_LABEL = { stretch: ["#46a8ff", "blue = muscles being stretched"], work: ["#ff4a3d", "red = muscles working"], mobility: ["#ffa43d", "orange = muscles moving through range"] };
 
 const PAIN_COLOR = 0xff8a3d;
 
@@ -30,11 +34,13 @@ export function initPain(app) {
         <div class="sev">Pain level <input type="range" min="0" max="10" value="${st.severity}" id="p-sev" /><b id="p-sev-v">${st.severity}</b></div>
         <div class="chips region-chips hidden" id="p-areas"></div>
       </div>
+      ${app.body === "female" ? `<div class="alert amber">The exercise guide works the same, but its 3D highlights use the muscles of the <b>male</b> body (the female dataset has almost none). <button class="btn" id="p-tomale">♂ Switch</button></div>` : ""}
       <div id="p-result"></div>
       <p class="muted" style="font-size:11px">${esc(DISCLAIMER)}</p>`;
     const input = el.querySelector("#p-text");
     const go = () => { st.text = input.value; search(input.value); };
     el.querySelector("#p-go").onclick = go;
+    el.querySelector("#p-tomale")?.addEventListener("click", () => app.loadBody("male").then(() => app.switchMode("pain")));
     input.addEventListener("keydown", (e) => e.key === "Enter" && go());
     el.querySelector("#p-tap").onclick = () => { toast("Tap the spot on the body that hurts"); app.viewer.setView("front"); };
     el.querySelector("#p-sev").oninput = (e) => {
@@ -120,7 +126,14 @@ export function initPain(app) {
         <div class="ex-head"><b>${i + 1}. ${esc(ex.name)}</b><span class="type ${esc(ex.type)}">${esc(ex.type)}</span></div>
         <div class="muted" style="font-size:12px">${doseText(ex.dose)} · ${"●".repeat(ex.level || 1)}${"○".repeat(3 - (ex.level || 1))}</div>
         <div class="ex-body hidden"><ol>${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>${ex.cue ? `<div class="cue">💡 ${esc(ex.cue)}</div>` : ""}</div>
+        ${POSES[`${r.id}|${ex.name}`]?.dofs ? `<button class="btn demo-btn">🎬 Show me in 3D</button>` : ""}
       </div>`);
+      card.querySelector(".demo-btn")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const d = demoFor(r, ex);
+        card.querySelector(".demo-note")?.remove();
+        card.appendChild(h(`<div class="demo-note">${demoLegend(d)}</div>`));
+      });
       card.querySelector(".ex-head").onclick = () => {
         card.querySelector(".ex-body").classList.toggle("hidden");
         const ids = idsFor(ex.target);
@@ -172,8 +185,25 @@ export function initPain(app) {
   app.pain = { fromPart };
 
   // ---------- routine player ----------
+  // Play an exercise on the 3D skeleton. Returns the pose spec (or a reason it can't be shown).
+  function demoFor(region, ex) {
+    const spec = POSES[`${region.id}|${ex.name}`];
+    if (!spec?.dofs) return { none: spec?.note || "No 3D demo for this one — follow the steps." };
+    if (app.body !== "male") return { none: "3D demos use the male body's full skeleton and muscles — switch with ♂ at the top." };
+    app.motion.demo(spec);
+    return spec;
+  }
+  function demoLegend(d) {
+    if (!d || d.none) return `<span class="muted">${esc(d?.none || "")}</span>`;
+    const [col, txt] = MODE_LABEL[d.mode] || MODE_LABEL.mobility;
+    return `<span class="ph-dot" style="background:${col};box-shadow:0 0 8px ${col}"></span> 🎬 ${esc(txt)}${d.note ? ` · <span class="muted">${esc(d.note)}</span>` : ""}`;
+  }
+
   function startRoutine(region) {
-    const modal = $("#routine");
+    const modal = el;
+    let lastDemo = null;
+    const play = (ex) => { if (lastDemo !== ex) { lastDemo = ex; lastSpec = demoFor(region, ex); } return lastSpec; };
+    let lastSpec = null;
     const steps = [];
     region.exercises.forEach((ex, i) => {
       const sets = ex.dose?.sets || 1;
@@ -183,7 +213,8 @@ export function initPain(app) {
       }
     });
     let k = 0, timer = null, remaining = 0, paused = false;
-    const stop = () => { clearInterval(timer); modal.classList.add("hidden"); modal.innerHTML = ""; app.viewer.clearMarks(); app.viewer.mark(idsFor(region.structures), PAIN_COLOR); };
+    const stop = () => { clearInterval(timer); app.motion.stop(); st.routine = false; render(); app.viewer.clearMarks(); app.viewer.mark(idsFor(region.structures), PAIN_COLOR); };
+    st.routine = true;
     const ring = (frac, num, sub) => {
       const R = 74, C = 2 * Math.PI * R;
       return `<div class="ring"><svg width="170" height="170"><circle cx="85" cy="85" r="${R}" stroke="#1f2a3a" stroke-width="12" fill="none"/>
@@ -195,23 +226,27 @@ export function initPain(app) {
       if (k >= steps.length) return done();
       const s = steps[k];
       const ex = s.ex;
-      app.viewer.clearMarks();
-      const tids = idsFor(ex.target?.length ? ex.target : region.structures);
-      app.viewer.mark(tids, s.kind === "rest" ? 0x4cc3ff : PAIN_COLOR);
+      // show the exercise (or, while resting, the next one) on the 3D body
+      const spec = play(s.kind === "rest" ? steps[k + 1]?.ex || ex : ex);
+      if (spec.none) {
+        app.viewer.clearMarks();
+        app.viewer.mark(idsFor(ex.target?.length ? ex.target : region.structures), s.kind === "rest" ? 0x4cc3ff : PAIN_COLOR);
+      }
+      const legend = `<div class="demo-note">${demoLegend(spec)}</div>`;
       const dots = region.exercises.map((_, j) => `<span class="${j < s.i ? "done" : j === s.i ? "cur" : ""}"></span>`).join("");
       if (s.kind === "rest") {
         const nxt = steps[k + 1]?.ex;
         remaining = s.secs;
-        modal.innerHTML = `<div class="box"><div class="dots">${dots}</div><h2 style="text-align:center;margin:0">Rest</h2>
-          <p class="muted" style="text-align:center">Next: <b style="color:var(--text)">${esc(nxt?.name || "")}</b></p>
+        modal.innerHTML = `<div class="card routine"><div class="dots">${dots}</div><h2 style="text-align:center;margin:0">Rest</h2>
+          <p class="muted" style="text-align:center">Next: <b style="color:var(--text)">${esc(nxt?.name || "")}</b> (preview on the body)</p>${legend}
           <div id="r-ring">${ring(1, remaining, "rest")}</div>
           <div class="row" style="justify-content:center"><button class="btn" id="r-skip">Skip rest ▶</button><button class="btn" id="r-quit">End</button></div></div>`;
         tick(s.secs, "rest");
       } else {
         const hold = ex.dose?.holdSec;
-        modal.innerHTML = `<div class="box"><div class="dots">${dots}</div>
+        modal.innerHTML = `<div class="card routine"><div class="dots">${dots}</div>
           <div class="qhead"><span>Exercise ${s.i + 1}/${region.exercises.length}</span><span>Set ${s.set}/${s.sets}</span></div>
-          <h2 style="margin:6px 0">${esc(ex.name)}</h2><span class="type ${esc(ex.type)}">${esc(ex.type)}</span>
+          <h2 style="margin:6px 0">${esc(ex.name)}</h2><span class="type ${esc(ex.type)}">${esc(ex.type)}</span>${legend}
           <ol>${ex.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
           ${ex.cue ? `<div class="cue" style="color:var(--accent2)">💡 ${esc(ex.cue)}</div>` : ""}
           <div id="r-ring">${hold ? ring(1, hold, "hold") : ring(1, ex.dose?.reps || "✓", "reps")}</div>
@@ -240,13 +275,14 @@ export function initPain(app) {
       store.routines = (store.routines || 0) + 1;
       saveStore();
       addXP(40);
-      modal.innerHTML = `<div class="box" style="text-align:center"><div style="font-size:54px">🎉</div><h2>Routine complete!</h2>
+      app.motion.stop();
+      modal.innerHTML = `<div class="card routine" style="text-align:center"><div style="font-size:54px">🎉</div><h2>Routine complete!</h2>
         <p class="muted">+40 XP · ${store.routines} routine${store.routines > 1 ? "s" : ""} done so far. Consistency beats intensity — try this daily for 2–3 weeks.</p>
         <button class="btn primary" id="r-close">Close</button></div>`;
       modal.querySelector("#r-close").onclick = stop;
     };
-    modal.classList.remove("hidden");
     show();
+    app.openPanelMobile();
   }
 
   let actx;
@@ -262,9 +298,9 @@ export function initPain(app) {
 
   app.modeHandlers.pain = {
     enter: () => { app.viewer.select([]); app.selectedId = null; render(); if (st.region) showRegion(st.region, st.others); },
-    exit: () => { app.viewer.clearMarks(); st.tapMode = false; },
+    exit: () => { app.motion?.stop(); st.routine = false; app.viewer.clearMarks(); st.tapMode = false; },
     onPick: (id) => {
-      if (id) fromPart(id); // in this mode any tap on the body looks up that spot
+      if (id && !st.routine) fromPart(id); // in this mode any tap on the body looks up that spot
     },
   };
 }

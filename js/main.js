@@ -1,13 +1,19 @@
 import { Viewer } from "./viewer.js";
 import {
   SYSTEM_ORDER, sysLabel, sysColor, sysBlurb, pretty, kbFor, regionOf, store, levelFor, xpForLevel, onXP,
-  $, h, esc, toast, achievements, currentStreak,
+  $, h, esc, toast, achievements, currentStreak, setBodyKB,
 } from "./util.js";
 import { initLearn } from "./learn.js";
 import { initQuiz } from "./quiz.js";
 import { initPain } from "./painui.js";
 
-const DEFAULT_ON = new Set(["muscular", "connective", "skeletal"]);
+// Two reference bodies. The female body comes from a different dataset with different coverage.
+const BODIES = {
+  male: { base: "models", label: "Male", icon: "♂", on: ["muscular", "connective", "skeletal"], skin: 0.35 },
+  female: { base: "models/female", label: "Female", icon: "♀", skin: 0.18,
+    on: ["skin", "skeletal", "muscular", "connective", "nerves", "nervous", "cardio", "respiratory", "digestive", "urinary", "reproductive", "lymphatic", "endocrine"] },
+};
+function savedBody() { try { return localStorage.getItem("anatomy3d.body") === "female" ? "female" : "male"; } catch { return "male"; } }
 
 const app = {
   viewer: null,
@@ -19,36 +25,21 @@ const app = {
   modeHandlers: {},   // mode -> { onPick, enter, exit }
   hoverEnabled: true,
   labelEnabled: true,
+  body: savedBody(),
+  bodyHooks: [],      // called after a body loads
 };
 window.app = app; // handy for debugging in the console
 
 async function boot() {
-  const manifest = await (await fetch("models/parts.json")).json();
-  for (const p of manifest) {
-    p.kb = kbFor(p.base);
-    p.region = regionOf(p, p.kb);
-    app.byId.set(p.id, p);
-    if (!app.units.has(p.base)) app.units.set(p.base, []);
-    app.units.get(p.base).push(p.id);
-  }
-  app.parts = manifest;
-
   const viewer = (app.viewer = new Viewer($("#canvas-wrap")));
-  for (const s of DEFAULT_ON) viewer.systemsVisible.add(s);
-  buildLayers();
-  buildTree();
   buildSearch();
   bindToolbar();
   bindTabs();
   updateXP(false);
   onXP(updateXP);
-
-  const systems = [...new Set(manifest.map((p) => p.system))];
-  await viewer.load(manifest, systems, (f) => {
-    $("#load-pct").textContent = Math.round(f * 100) + "%";
-    $("#loadfill").style.width = f * 100 + "%";
-  });
-  $("#loading").classList.add("hidden");
+  $("#skin-opacity").addEventListener("input", (e) => app.viewer.setSkinOpacity(+e.target.value));
+  $("#btn-body").onclick = () => loadBody(app.body === "male" ? "female" : "male");
+  await loadBody(app.body, true);
   setTimeout(() => ($("#hint").style.opacity = 0), 7000);
 
   viewer.onPick = (id, point, e) => {
@@ -72,10 +63,59 @@ async function boot() {
   initQuiz(app);
   initPain(app);
   initLearn(app);
+  for (const f of app.bodyHooks) f(app.body); // modes set up for whichever body loaded first
   bindViewControls();
   renderExplore();
   handleHash();
 }
+
+// Load (or switch to) a body: manifest, study notes, layers, browse tree, search, 3D models.
+async function loadBody(body, first = false) {
+  const cfg = BODIES[body];
+  if (!first) {
+    if (app.mode !== "explore") switchMode("explore");
+    selectPart(null);
+    app.viewer.setClip(null);
+  }
+  $("#loading").classList.remove("hidden");
+  $("#load-pct").textContent = "0%";
+  $("#loadfill").style.width = "0%";
+  app.body = body;
+  try { localStorage.setItem("anatomy3d.body", body); } catch { /* ignore */ }
+  await setBodyKB(body);
+  const manifest = await (await fetch(`${cfg.base}/parts.json`)).json();
+  app.byId = new Map();
+  app.units = new Map();
+  for (const p of manifest) {
+    p.kb = kbFor(p.base);
+    p.region = regionOf(p, p.kb);
+    app.byId.set(p.id, p);
+    if (!app.units.has(p.base)) app.units.set(p.base, []);
+    app.units.get(p.base).push(p.id);
+  }
+  app.parts = manifest;
+  const v = app.viewer;
+  v.clear();
+  v.systemsVisible = new Set(cfg.on);
+  v.skinOpacity = cfg.skin;
+  $("#skin-opacity").value = cfg.skin;
+  buildLayers();
+  buildTree();
+  buildSearchIndex();
+  const systems = [...new Set(manifest.map((p) => p.system))];
+  await v.load(manifest, systems, (f) => {
+    $("#load-pct").textContent = Math.round(f * 100) + "%";
+    $("#loadfill").style.width = f * 100 + "%";
+  }, cfg.base);
+  v.setView("front");
+  $("#loading").classList.add("hidden");
+  const btn = $("#btn-body");
+  btn.innerHTML = `<span class="sym">${cfg.icon}</span><span class="only-desktop">${cfg.label}</span>`;
+  btn.title = `Showing the ${cfg.label.toLowerCase()} body — tap to switch`;
+  for (const f of app.bodyHooks) f(body);
+  if (!first) { renderExplore(); toast(`${cfg.icon} ${cfg.label} body loaded`); }
+}
+app.loadBody = loadBody;
 
 // ---------- layers ----------
 function buildLayers() {
@@ -90,7 +130,6 @@ function buildLayers() {
     row.querySelector("input").addEventListener("change", (e) => app.viewer.setSystemVisible(s, e.target.checked));
     wrap.appendChild(row);
   }
-  $("#skin-opacity").addEventListener("input", (e) => app.viewer.setSkinOpacity(+e.target.value));
 }
 export function setLayer(sys, on) {
   app.viewer.setSystemVisible(sys, on);
@@ -108,6 +147,7 @@ app.ensureVisible = (ids) => {
 // ---------- browse tree ----------
 function buildTree() {
   const tree = $("#tree");
+  tree.innerHTML = "";
   const bySys = {};
   for (const [base, ids] of app.units) {
     const s = app.byId.get(ids[0]).system;
@@ -133,9 +173,9 @@ function buildTree() {
 }
 
 // ---------- search ----------
-function buildSearch() {
-  const input = $("#search"), res = $("#search-results");
-  const index = [];
+let index = [];
+function buildSearchIndex() {
+  index = [];
   const seen = new Set();
   for (const p of app.parts) {
     index.push({ label: pretty(p.name), sub: sysLabel(p.system), ids: [p.id], text: p.name.toLowerCase() });
@@ -145,6 +185,9 @@ function buildSearch() {
       index.push({ label: p.kb.title, sub: `${sysLabel(p.system)} · whole structure (${ids.length} parts)`, ids, text: (p.kb.title + " " + (p.kb.match || []).join(" ")).toLowerCase(), kb: true });
     }
   }
+}
+function buildSearch() {
+  const input = $("#search"), res = $("#search-results");
   const run = () => {
     const q = input.value.trim().toLowerCase();
     if (q.length < 2) { res.classList.remove("open"); return; }
@@ -260,7 +303,9 @@ function renderExplore() {
     el.innerHTML = `
       <div class="card">
         <h2>Welcome to the atlas 👋</h2>
-        <p class="muted">A real 3D human body built from MRI-derived data — ${app.parts.length} selectable structures.</p>
+        <p class="muted">${app.body === "female"
+          ? `The <b>female</b> body — ${app.parts.length} structures from the Visible Human Female (HRA). It has organs, vessels, brain, spine, pelvis and knees, but no full skeleton or muscles: those aren't in any open female dataset yet. Switch with ♂/♀ at the top.`
+          : `A real 3D human body built from MRI-derived data — ${app.parts.length} selectable structures. Switch to the female body with ♂/♀ at the top.`}</p>
         <h4>How to use it</h4>
         <p>• <b>Tap</b> any structure for origin, insertion, action, nerve and clinical notes.<br>
            • <b>Hide</b> superficial muscles to peel down to deeper layers.<br>
@@ -316,7 +361,7 @@ function renderExplore() {
       <button class="btn" id="b-iso">🔍 Isolate</button>
       ${sides.length === 2 ? `<button class="btn" id="b-both">↔ Both sides</button>` : ""}
       <button class="btn" id="b-hurt">🤕 Hurts here?</button>
-      ${app.motion?.movesFor(p.base).length ? `<button class="btn" id="b-move">🎬 See it move</button>` : ""}
+      ${app.body === "male" && app.motion?.movesFor(p.base).length ? `<button class="btn" id="b-move">🎬 See it move</button>` : ""}
     </div></div>`;
   el.innerHTML = html;
   el.querySelectorAll(".parts-list button").forEach((b) => (b.onclick = () => { selectPart(b.dataset.id); app.viewer.focusSmart([b.dataset.id]); }));

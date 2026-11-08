@@ -3,7 +3,9 @@
 import { LESSONS as LESSONS_MAIN } from "./data/lessons.js";
 let LESSONS_NERVES = [];
 try { ({ LESSONS_NERVES } = await import("./data/lessons_nerves.js")); } catch { /* not present */ }
-const LESSONS = [...LESSONS_MAIN, ...LESSONS_NERVES];
+let LESSONS_FEMALE = [];
+try { ({ LESSONS_FEMALE } = await import("./data/lessons_female.js")); } catch { /* not present */ }
+const ALL_LESSONS = [...LESSONS_MAIN, ...LESSONS_NERVES, ...LESSONS_FEMALE];
 import { pretty, store, saveStore, addXP, $, h, esc, toast } from "./util.js";
 import { initMotion } from "./motion.js";
 
@@ -14,6 +16,9 @@ export function initLearn(app) {
   const el = $("#panel-learn");
   const st = { lesson: null, step: 0, move: null };
   const motion = (app.motion = initMotion(app));
+  // lessons are written against one body's structure names
+  let LESSONS = ALL_LESSONS.filter((x) => (x.body || "male") === app.body);
+  app.bodyHooks.push((body) => { motion.stop(); motion.reset(); st.lesson = null; st.move = null; LESSONS = ALL_LESSONS.filter((x) => (x.body || "male") === body); });
 
   // Whole-word matching so "ulna" doesn't grab "flexor carpi ulnaris"; falls back to substring if nothing matches.
   function matchIds(subs = [], side = "right", category = "") {
@@ -54,11 +59,12 @@ export function initLearn(app) {
         <div class="stats"><div><b>${done}/${LESSONS.length}</b>Completed</div><div><b>${LESSONS.reduce((a, l) => a + l.steps.length, 0)}</b>Steps</div><div><b>+50</b>XP each</div></div>
       </div>
       <div class="card"><h4 style="margin-top:0">🎬 Muscle actions</h4>
-        <p class="muted" style="font-size:13px">Watch the skeleton move while the muscles that do it contract — prime movers glow red, antagonists blue.</p>
-        <div class="move-grid" id="l-moves"></div></div>
+        ${app.body === "male" ? `<p class="muted" style="font-size:13px">Watch the skeleton move while the muscles that do it contract — prime movers glow red, antagonists blue.</p>
+        <div class="move-grid" id="l-moves"></div>` : `<p class="muted" style="font-size:13px">Muscle actions need a full skeleton and musculature, which only the male body has. <button class="btn" id="l-tomale">♂ Switch to the male body</button></p>`}</div>
       <div id="l-list"></div>`;
     const mg = el.querySelector("#l-moves");
-    for (const m of motion.MOVES) {
+    el.querySelector("#l-tomale")?.addEventListener("click", () => app.loadBody("male"));
+    for (const m of mg ? motion.MOVES : []) {
       const b = h(`<button class="move-btn"><b>${esc(m.name)}</b><span class="meta">${esc(m.region)}${store.movesSeen?.[m.id] ? " · ✓" : ""}</span></button>`);
       b.onclick = () => playMove(m);
       mg.appendChild(b);

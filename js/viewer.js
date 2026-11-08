@@ -367,7 +367,25 @@ export class Viewer {
 
   invalidate() { this._dirty = true; }
 
-  async load(manifest, systems, onProgress) {
+  // Remove every part (used when switching bodies).
+  clear() {
+    this.setPin?.(null);
+    this._setXray?.([]);
+    for (const p of this.parts.values()) {
+      this.scene.remove(p.mesh);
+      p.mesh.geometry.boundsTree && p.mesh.geometry.disposeBoundsTree();
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+    }
+    this.parts.clear();
+    this.hidden.clear();
+    this.isolated = null; this.spotSystems = null; this._spotTargets = null; this._lastSpot = null;
+    this.selected = new Set(); this.related = new Set(); this.marks.clear();
+    this.hoverId = null;
+    this.invalidate();
+  }
+
+  async load(manifest, systems, onProgress, base = "models") {
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const byId = new Map(manifest.map((p) => [p.id, p]));
     const progress = new Map();
@@ -381,13 +399,13 @@ export class Viewer {
         let gltf;
         if (window.ANATOMY_MODEL_FORMAT === "b64") {
           // hosts that can't serve .glb get the same bytes as base64 inside JSON
-          const { b64 } = await (await fetch(`models/${sys}.b64.json`)).json();
+          const { b64 } = await (await fetch(`${base}/${sys}.b64.json`)).json();
           const bin = atob(b64);
           const bytes = new Uint8Array(bin.length);
           for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
           gltf = await loader.parseAsync(bytes.buffer, "");
         } else {
-          gltf = await loader.loadAsync(`models/${sys}.glb`, (e) => {
+          gltf = await loader.loadAsync(`${base}/${sys}.glb`, (e) => {
             if (e.total) progress.set(sys, (e.loaded / e.total) * 0.95);
             report();
           });
@@ -427,6 +445,7 @@ export class Viewer {
     );
     const box = new THREE.Box3();
     for (const p of this.parts.values()) box.union(p.mesh.geometry.boundingBox);
+    this.bodyBox = box;
     this.aoPass?.setSceneClipBox(box);
     this._buildBvhIdle();
     this._applyVisibility();
@@ -687,14 +706,19 @@ export class Viewer {
   fitDistance() {
     const vf = THREE.MathUtils.degToRad(this.camera.fov / 2);
     const hf = Math.atan(Math.tan(vf) * this.camera.aspect);
-    return Math.max(0.92 / Math.tan(vf), 0.42 / Math.tan(hf)) * 1.04;
+    const b = this.bodyBox;
+    const halfH = b ? (b.max.y - b.min.y) / 2 + 0.05 : 0.92;
+    const halfW = b ? Math.max(Math.abs(b.min.x), Math.abs(b.max.x)) : 0.42;
+    return Math.max(halfH / Math.tan(vf), halfW / Math.tan(hf)) * 1.04;
   }
   setView(name) {
-    const t = new THREE.Vector3(0, 0.86, 0);
+    const h = this.bodyBox ? this.bodyBox.max.y : 1.72;
+    const t = new THREE.Vector3(0, h * 0.5, 0);
     const D = this.fitDistance();
+    const e = h * 0.55;
     const pos = {
-      front: [0, 0.95, D], back: [0, 0.95, -D], left: [D, 0.95, 0], right: [-D, 0.95, 0], top: [0, D + 0.9, 0.01],
-    }[name] || [0, 0.95, D];
+      front: [0, e, D], back: [0, e, -D], left: [D, e, 0], right: [-D, e, 0], top: [0, D + h * 0.5, 0.01],
+    }[name] || [0, e, D];
     this._animateTo(t, new THREE.Vector3(...pos));
   }
   _animateTo(target, pos) {

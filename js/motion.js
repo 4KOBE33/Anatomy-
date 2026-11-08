@@ -72,7 +72,24 @@ export const MOVES = [
     text: "Inversion and eversion happen mainly at the subtalar and transverse tarsal joints, around an oblique axis. Tibialis anterior and posterior invert; the fibularis (peroneus) muscles evert. Most ankle sprains are inversion injuries to the lateral ligaments." },
 ];
 
-const ORDER = ["tmj", "shoulder", "elbow", "radioulnar", "wrist", "hip", "knee", "ankle", "subtalar"];
+const ORDER = ["lumbar", "neck", "tmj", "shoulder", "elbow", "radioulnar", "wrist", "hip", "knee", "ankle", "subtalar"];
+
+// Named degrees of freedom: [joint, axis, sign] — positive degrees = the named movement (right side).
+export const DOF = {
+  neck_flex: ["neck", "x", 1], neck_side: ["neck", "z", 1], neck_rot: ["neck", "y", -1],
+  lumbar_flex: ["lumbar", "x", 1], lumbar_side: ["lumbar", "z", 1], lumbar_rot: ["lumbar", "y", -1],
+  jaw_open: ["tmj", "x", 1],
+  sh_flex: ["shoulder", "x", -1], sh_abd: ["shoulder", "z", -1], sh_hadd: ["shoulder", "y", 1], sh_rot_lat: ["shoulder", "rot", 1],
+  elbow_flex: ["elbow", "x", -1], pron: ["radioulnar", "ru", -1], wrist_flex: ["wrist", "x", -1],
+  hip_flex: ["hip", "x", -1], hip_abd: ["hip", "z", -1], hip_rot_lat: ["hip", "rot", 1],
+  knee_flex: ["knee", "x", 1], ankle_pf: ["ankle", "ank", 1], foot_inv: ["subtalar", "st", 1],
+};
+// Order rotations compose in at a joint, outermost first (shoulder: horizontal add., abduction, flexion, axial rotation).
+const AXIS_ORDER = { shoulder: ["y", "z", "x", "rot"], hip: ["z", "x", "rot"], neck: ["x", "z", "y"], lumbar: ["x", "z", "y"] };
+const MOVE_DOF = { "tmj:x": "jaw_open", "shoulder:z": "sh_abd", "shoulder:x": "sh_flex", "shoulder:rot": "sh_rot_lat", "elbow:x": "elbow_flex",
+  "radioulnar:ru": "pron", "wrist:x": "wrist_flex", "hip:x": "hip_flex", "hip:z": "hip_abd", "knee:x": "knee_flex", "ankle:ank": "ankle_pf", "subtalar:st": "foot_inv" };
+const UPPER = /thoracic vertebra$|cervical vertebra$|^(atlas|axis)$|^(first|second) lumbar vertebra$|rib$|costal cartilage$|^(manubrium|body of sternum|xiphoid process|scapula|clavicle|hyoid bone)$|intervertebral disk of (axis|.*(cervical|thoracic) vertebra|(first|second) lumbar vertebra)$/;
+const HEAD = /^(atlas|axis|third cervical vertebra|fourth cervical vertebra|fifth cervical vertebra)$|intervertebral disk of (axis|(third|fourth|fifth) cervical vertebra)$/;
 
 export function initMotion(app) {
   const v = app.viewer;
@@ -124,13 +141,20 @@ export function initMotion(app) {
     const mand = verts(bones(/^mandible$/, "both"));
     const tmj = centroid(slab(mand, "y", true, 0.012));
     const grp = (...res) => new Set(res.flatMap((re) => bones(re)));
+    const both = (...res) => new Set(res.flatMap((re) => bones(re, "both")));
+    const L3 = centroid(verts(bones(/^third lumbar vertebra$/, "both")));
+    const C6 = centroid(verts(bones(/^sixth cervical vertebra$/, "both")));
     J = {
+      lumbar: { pivot: L3, axes: { x: V(1, 0, 0), z: V(0, 0, 1), y: V(0, 1, 0) }, distal: both(UPPER, SKULL, JAW, ARM, FOREARM, HAND),
+        prox: both(/^(hip bone|sacrum)$/, /^(fourth|fifth) lumbar vertebra$/) },
+      neck: { pivot: C6, axes: { x: V(1, 0, 0), z: V(0, 0, 1), y: V(0, 1, 0) }, distal: both(HEAD, SKULL, JAW),
+        prox: both(/^(seventh cervical vertebra|first thoracic vertebra|second thoracic vertebra|clavicle|manubrium|scapula|sixth cervical vertebra)$/) },
       tmj: { pivot: tmj, axes: { x: V(1, 0, 0) }, distal: new Set(bones(JAW, "both")), prox: new Set(bones(SKULL, "both")) },
-      shoulder: { pivot: head, axes: { x: V(1, 0, 0), z: V(0, 0, 1), rot: elbow.clone().sub(head).normalize() }, distal: grp(ARM, FOREARM, HAND), prox: new Set(bones(SHOULDER_PROX)) },
+      shoulder: { pivot: head, axes: { x: V(1, 0, 0), z: V(0, 0, 1), y: V(0, 1, 0), rot: elbow.clone().sub(head).normalize() }, distal: grp(ARM, FOREARM, HAND), prox: new Set(bones(SHOULDER_PROX)) },
       elbow: { pivot: elbow, axes: { x: elbowAxis }, distal: grp(FOREARM, HAND), prox: grp(ARM, /^(scapula|clavicle)$/) },
       radioulnar: { pivot: radHead, axes: { ru: ulnHead.clone().sub(radHead).normalize() }, distal: grp(/^radius$/, HAND), prox: grp(/^ulna$/, ARM) },
       wrist: { pivot: centroid(verts(bones(/^capitate$/))), axes: { x: wristAxis }, distal: grp(HAND), prox: grp(FOREARM, ARM) },
-      hip: { pivot: hip, axes: { x: V(1, 0, 0), z: V(0, 0, 1) }, distal: grp(THIGH, LEG, FOOT), prox: grp(/^(hip bone|sacrum)$/, /lumbar vertebra$/) },
+      hip: { pivot: hip, axes: { x: V(1, 0, 0), z: V(0, 0, 1), rot: knee.clone().sub(hip).normalize() }, distal: grp(THIGH, LEG, FOOT), prox: grp(/^(hip bone|sacrum)$/, /lumbar vertebra$/) },
       knee: { pivot: knee, axes: { x: kneeAxis }, distal: grp(LEG, FOOT, /^patella$/), prox: grp(/^femur$/, /^hip bone$/) },
       ankle: { pivot: ankle, axes: { ank: toPlusX(latMall.clone().sub(medMall)) }, distal: grp(FOOT), prox: grp(LEG, /^femur$/) },
       subtalar: { pivot: talus, axes: { st: nav.clone().sub(calcPost).normalize() }, distal: new Set(bones(FOOT).filter((id) => app.byId.get(id).base !== "talus")), prox: grp(/^talus$/, LEG) },
@@ -164,12 +188,13 @@ export function initMotion(app) {
   }
   const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-  function buildRig(move) {
+  // spec: { dofs: [names], a: [muscle names], b: [muscle names], both, focusDof }
+  function buildRig(spec) {
     if (!J) computeJoints();
-    const joints = [...(move.pre || []).map((p) => ({ ...p, fixed: true })), { joint: move.joint, axis: move.axis, sign: move.sign, drive: true }]
-      .sort((a, b) => ORDER.indexOf(a.joint) - ORDER.indexOf(b.joint))
-      .map((j) => ({ ...j, J: J[j.joint], mat: new THREE.Matrix4(), rot: new THREE.Matrix3() }));
-    const allA = muscleIds(move.a.muscles, move.both), allB = muscleIds(move.b.muscles, move.both);
+    const used = [...new Set(spec.dofs.map((d) => DOF[d][0]))];
+    const joints = used.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))
+      .map((name) => ({ joint: name, J: J[name], mat: new THREE.Matrix4(), rot: new THREE.Matrix3() }));
+    const allA = muscleIds(spec.a || [], spec.both), allB = muscleIds(spec.b || [], spec.both);
     const muscles = [...new Set([...allA, ...allB])];
     const boneIds = new Set(joints.flatMap((j) => [...j.J.distal]));
     const samples = joints.map((j) => ({ prox: sampleSet([...j.J.prox]), dist: sampleSet([...j.J.distal]) }));
@@ -201,7 +226,7 @@ export function initMotion(app) {
       return { id, mesh, g, base, baseN, w, bulge, amp: Math.min(0.007, size * 0.025), group: allA.includes(id) ? "a" : "b" };
     });
     // the swing must stay on screen: sphere around the moving joint covering everything that moves
-    const piv = joints.find((j) => j.drive).J.pivot;
+    const piv = J[spec.focusDof ? DOF[spec.focusDof][0] : joints[joints.length - 1].joint].pivot;
     let r = 0.08;
     for (const id of [...boneIds, ...muscles]) {
       const bb = v.parts.get(id)?.mesh.geometry.boundingBox;
@@ -212,13 +237,16 @@ export function initMotion(app) {
   }
 
   const tmpP = V(0, 0, 0), tmpN = V(0, 0, 0), tmpQ = V(0, 0, 0);
-  function pose(rig, u) {
-    const move = st.move;
+  const tmpR = new THREE.Matrix4();
+  // angles: { dof: degrees }; act(m) → bulge activation per muscle mesh (−1 thin … 1 bulging)
+  function pose(rig, angles, act) {
     for (const j of rig.joints) {
-      const deg = j.drive ? move.range[0] + (move.range[1] - move.range[0]) * u : j.deg;
-      const ang = THREE.MathUtils.degToRad(deg * j.sign);
-      const ax = j.J.axes[j.axis];
-      const R = new THREE.Matrix4().makeRotationAxis(ax, ang);
+      const R = new THREE.Matrix4();
+      for (const ax of AXIS_ORDER[j.joint] || Object.keys(j.J.axes)) {
+        const dof = Object.keys(DOF).find((d) => DOF[d][0] === j.joint && DOF[d][1] === ax);
+        const deg = dof ? angles[dof] || 0 : 0;
+        if (deg) R.multiply(tmpR.makeRotationAxis(j.J.axes[ax], THREE.MathUtils.degToRad(deg * DOF[dof][2])));
+      }
       j.mat.makeTranslation(j.J.pivot.x, j.J.pivot.y, j.J.pivot.z).multiply(R)
         .multiply(new THREE.Matrix4().makeTranslation(-j.J.pivot.x, -j.J.pivot.y, -j.J.pivot.z));
       j.rot.setFromMatrix4(R);
@@ -232,15 +260,14 @@ export function initMotion(app) {
       mesh.matrixWorldNeedsUpdate = true;
     }
     // muscles: blend per joint (distal joint first), then bulge along the normal as they shorten
-    const actA = u, actB = 1 - u;
     for (const m of rig.meshes) {
       const pos = m.g.attributes.position.array, nor = m.g.attributes.normal.array;
-      const act = m.group === "a" ? actA : actB;
+      const a = act(m);
       const n = pos.length / 3;
       for (let i = 0; i < n; i++) {
         tmpP.set(m.base[i * 3], m.base[i * 3 + 1], m.base[i * 3 + 2]);
         tmpN.set(m.baseN[i * 3], m.baseN[i * 3 + 1], m.baseN[i * 3 + 2]);
-        const b = m.bulge[i] * m.amp * (act - 0.35);
+        const b = m.bulge[i] * m.amp * a;
         tmpP.addScaledVector(tmpN, b);
         for (let k = rig.joints.length - 1; k >= 0; k--) {
           const w = m.w[k][i];
@@ -294,7 +321,14 @@ export function initMotion(app) {
     st.onUpdate?.(move[ph]);
   }
 
+  function moveAngles(move, u) {
+    const a = {};
+    for (const p of move.pre || []) a[MOVE_DOF[`${p.joint}:${p.axis}`]] = p.deg;
+    a[MOVE_DOF[`${move.joint}:${move.axis}`]] = move.range[0] + (move.range[1] - move.range[0]) * u;
+    return a;
+  }
   function tick(dt) {
+    if (st.demo) return demoTick(dt);
     if (!st.move) return;
     if (st.playing) {
       st.t += dt * st.speed;
@@ -302,7 +336,7 @@ export function initMotion(app) {
       st.u = 0.5 - 0.5 * Math.cos((2 * Math.PI * st.t) / period);
       setPhase(Math.sin((2 * Math.PI * st.t) / period) >= 0 ? "a" : "b");
     }
-    pose(st.rig, st.u);
+    pose(st.rig, moveAngles(st.move, st.u), (m) => (m.group === "a" ? st.u : 1 - st.u) - 0.35);
     st.onFrame?.(st.u);
   }
 
@@ -314,7 +348,8 @@ export function initMotion(app) {
     v.showAll();
     v.setClip(null);
     st.move = move;
-    st.rig = buildRig(move);
+    const md = MOVE_DOF[`${move.joint}:${move.axis}`];
+    st.rig = buildRig({ dofs: [md, ...(move.pre || []).map((p) => MOVE_DOF[`${p.joint}:${p.axis}`])], a: move.a.muscles, b: move.b.muscles, both: move.both, focusDof: md });
     // only the moving muscles are shown — the rest of the musculature and tendons are hidden
     const keep = new Set(st.rig.muscles);
     v.hide(app.parts.filter((p) => (p.system === "muscular" || p.system === "connective") && !keep.has(p.id)).map((p) => p.id));
@@ -332,7 +367,73 @@ export function initMotion(app) {
     if (!store.movesSeen[move.id]) { store.movesSeen[move.id] = 1; saveStore(); addXP(8); }
   }
 
+  // ---------- exercise demos ----------
+  // spec: { dofs: [ {dof: deg, ...}, ... ] | null, muscles: [...], mode: "stretch" | "work" | "mobility" }
+  const MODE_COLOR = { stretch: 0x46a8ff, work: 0xff4a3d, mobility: 0xffa43d };
+  const ease = (x) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, x)));
+  function demo(spec) {
+    stop();
+    if (!spec?.dofs?.length) return false;
+    const keys = [...new Set(spec.dofs.flatMap((p) => Object.keys(p)))].filter((d) => DOF[d]);
+    if (!keys.length) return false;
+    const ok = new Set(["skeletal", "muscular", "connective"]);
+    st.saved = new Set(v.systemsVisible);
+    for (const s of new Set(app.parts.map((p) => p.system))) app.setLayer(s, ok.has(s));
+    v.showAll();
+    v.setClip(null);
+    // frame the most proximal moving joint (the whole body when the spine moves)
+    const prox = keys.map((d) => DOF[d][0]).sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))[0];
+    const focusDof = keys.find((d) => DOF[d][0] === prox);
+    st.rig = buildRig({ dofs: keys, a: spec.muscles || [], b: [], focusDof });
+    st.demo = { spec, keys, t: 0, frames: [{}, ...spec.dofs] };
+    st.move = { id: "demo" };
+    const keep = new Set(st.rig.muscles);
+    v.hide(app.parts.filter((p) => (p.system === "muscular" || p.system === "connective") && !keep.has(p.id)).map((p) => p.id));
+    v.clearMarks();
+    v.mark(st.rig.allA, MODE_COLOR[spec.mode] || MODE_COLOR.mobility);
+    const groups = new Map();
+    for (const id of st.rig.allA) {
+      const p = app.byId.get(id);
+      const key = p.kb?.key || p.base;
+      if (!groups.has(key) || p.size > app.byId.get(groups.get(key).id).size) groups.set(key, { id, text: p.kb?.title || pretty(p.base) });
+    }
+    app.setLabels([...groups.values()].slice(0, 5));
+    // camera: side view unless the movement is mostly side-to-side or rotational
+    const big = keys.reduce((b, d) => (Math.max(...spec.dofs.map((p) => Math.abs(p[d] || 0))) > Math.max(...spec.dofs.map((p) => Math.abs(p[b] || 0))) ? d : b), keys[0]);
+    const dir = /abd|side|hadd|inv/.test(big) ? V(-0.25, 0.15, 1) : /rot/.test(big) ? V(-0.4, 0.7, 1) : V(-1, 0.15, 0.35);
+    const fov = THREE.MathUtils.degToRad(v.camera.fov / 2);
+    const hf = Math.atan(Math.tan(fov) * v.camera.aspect);
+    const r = prox === "lumbar" ? 0.95 : st.rig.radius;
+    const c = prox === "lumbar" ? V(0, 0.95, 0) : st.rig.pivot.clone();
+    v._animateTo(c, c.clone().addScaledVector(dir.normalize(), (r * 1.15) / Math.sin(Math.min(fov, hf))));
+    v.onTick = tick;
+    return true;
+  }
+  // 1 pose: rest → pose, hold, back. Several poses: flow through them in a loop.
+  function demoTick(dt) {
+    const d = st.demo;
+    d.t += dt * st.speed;
+    const F = d.frames, n = F.length;
+    let from, to, k, prog;
+    if (n === 2) {
+      const T = 6, x = d.t % T;
+      if (x < 1.4) { from = F[0]; to = F[1]; k = ease(x / 1.4); } else if (x < 4.2) { from = to = F[1]; k = 1; }
+      else if (x < 5.4) { from = F[1]; to = F[0]; k = ease((x - 4.2) / 1.2); } else { from = to = F[0]; k = 1; }
+      prog = from === F[1] && to === F[1] ? 1 : to === F[1] ? k : from === F[1] ? 1 - k : 0;
+    } else {
+      const seg = 1.9, T = seg * n, x = d.t % T, i = Math.floor(x / seg), f = (x % seg) / seg;
+      from = F[i]; to = F[(i + 1) % n]; k = ease(f / 0.7);
+      prog = i === 0 ? k : (i + 1) % n === 0 ? 1 - k : 1;
+    }
+    const a = {};
+    for (const key of d.keys) a[key] = (from[key] || 0) + ((to[key] || 0) - (from[key] || 0)) * k;
+    const mode = d.spec.mode;
+    pose(st.rig, a, () => (mode === "work" ? prog * 0.9 - 0.2 : mode === "stretch" ? -0.35 * prog : 0));
+    st.onFrame?.(prog);
+  }
+
   function stop() {
+    st.demo = null;
     if (!st.move) return;
     v.onTick = null;
     restore(st.rig);
@@ -347,6 +448,8 @@ export function initMotion(app) {
   return {
     MOVES,
     start, stop,
+    reset: () => { J = null; },
+    demo,
     active: () => !!st.move,
     current: () => st.move,
     setPlaying: (p) => { st.playing = p; },

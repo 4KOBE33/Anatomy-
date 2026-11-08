@@ -3,7 +3,17 @@ import { KB as KB_MAIN, SYSTEM_INFO as SI_MAIN } from "./data/kb.js";
 // nerve notes are optional (the app still runs without the file)
 let KB_NERVES = [], NERVE_SYSTEM_INFO = { label: "Nerves", color: "#f2c94c", blurb: "Peripheral nerves, plexuses, spinal cord and cranial nerves." };
 try { ({ KB_NERVES, NERVE_SYSTEM_INFO } = await import("./data/kb_nerves.js")); } catch { /* not present */ }
-const KB = [...KB_MAIN, ...KB_NERVES];
+let KB = [...KB_MAIN, ...KB_NERVES];
+// Which body is loaded. Female mode adds its own study notes (optional file) in front of the shared ones.
+export async function setBodyKB(body) {
+  let extra = [];
+  if (body === "female") {
+    try { ({ KB_FEMALE: extra } = await import("./data/kb_female.js")); } catch { /* not present */ }
+  }
+  KB = [...(extra || []), ...KB_MAIN, ...KB_NERVES];
+  BODY = body;
+  kbCache.clear();
+}
 const SYSTEM_INFO = { ...SI_MAIN, nerves: NERVE_SYSTEM_INFO };
 
 export const SYSTEM_ORDER = ["skin", "muscular", "connective", "skeletal", "nerves", "nervous", "cardio", "respiratory", "digestive", "urinary", "endocrine", "lymphatic", "reproductive"];
@@ -15,7 +25,11 @@ const FALLBACK_SYS = {
 };
 export function sysLabel(s) { return FALLBACK_SYS[s]?.[0] || SYSTEM_INFO?.[s]?.label || s; }
 export function sysColor(s) { return FALLBACK_SYS[s]?.[1] || SYSTEM_INFO?.[s]?.color || "#888"; }
-export function sysBlurb(s) { return SYSTEM_INFO?.[s]?.blurb || ""; }
+let BODY = "male";
+const FEMALE_BLURB = {
+  reproductive: "The female reproductive system: ovaries (eggs, oestrogen and progesterone), uterine tubes (site of fertilisation), the uterus with its cervix, and the vagina, held by the broad, round, ovarian, suspensory, cardinal and uterosacral ligaments. The breasts are accessory glands of reproduction.",
+};
+export function sysBlurb(s) { return (BODY === "female" && FEMALE_BLURB[s]) || SYSTEM_INFO?.[s]?.blurb || ""; }
 
 export function pretty(name) {
   const n = name.replace(/, nsn$/i, "").replace(/\bnsn\b/i, "").trim();
