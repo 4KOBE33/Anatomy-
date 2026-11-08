@@ -162,8 +162,16 @@ export function initMotion(app) {
   }
 
   const matchWord = (base, s) => new RegExp(`(^|\\s)${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|\\s)`).test(base);
+  // A name that is an exact muscle name means just that muscle ("extensor digitorum" ≠ "extensor digitorum longus");
+  // otherwise it picks up every part containing it as whole words ("deltoid" → its three parts).
   function muscleIds(names, both) {
-    return parts((p) => (p.system === "muscular" || p.system === "connective") && names.some((n) => matchWord(p.base, n)) && (both || !p.side || p.side === "right")).map((p) => p.id);
+    const soft = parts((p) => p.system === "muscular" || p.system === "connective");
+    const out = new Set();
+    for (const n of names) {
+      const exact = soft.filter((p) => p.base === n);
+      for (const p of exact.length ? exact : soft.filter((p) => matchWord(p.base, n))) if (both || !p.side || p.side === "right") out.add(p.id);
+    }
+    return [...out];
   }
 
   // ---------- rig ----------

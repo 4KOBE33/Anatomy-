@@ -41,18 +41,20 @@ def main(out):
     for d in ("js",):
         shutil.rmtree(os.path.join(out, d), ignore_errors=True)
         shutil.copytree(os.path.join(ROOT, d), os.path.join(out, d))
-    md = os.path.join(out, "models")
-    os.makedirs(md, exist_ok=True)
-    shutil.copy(os.path.join(ROOT, "models", "parts.json"), md)
     # artifacts don't serve .glb: re-encode without meshopt, then wrap the bytes as base64 JSON
-    for f in os.listdir(os.path.join(ROOT, "models")):
-        if f.endswith(".glb"):
-            tmp = os.path.join(md, f)
-            subprocess.run(["gltfpack", "-i", os.path.join(ROOT, "models", f), "-o", tmp,
-                            "-kn", "-km", "-vp", "14", "-vn", "8"], check=True, capture_output=True)
-            data = base64.b64encode(open(tmp, "rb").read()).decode("ascii")
-            json.dump({"b64": data}, open(os.path.join(md, f[:-4] + ".b64.json"), "w"))
-            os.remove(tmp)
+    for sub in ("models", os.path.join("models", "female")):
+        src = os.path.join(ROOT, sub)
+        md = os.path.join(out, sub)
+        os.makedirs(md, exist_ok=True)
+        shutil.copy(os.path.join(src, "parts.json"), md)
+        for f in os.listdir(src):
+            if f.endswith(".glb"):
+                tmp = os.path.join(md, f)
+                subprocess.run(["gltfpack", "-i", os.path.join(src, f), "-o", tmp,
+                                "-kn", "-km", "-vp", "14", "-vn", "8"], check=True, capture_output=True)
+                data = base64.b64encode(open(tmp, "rb").read()).decode("ascii")
+                json.dump({"b64": data}, open(os.path.join(md, f[:-4] + ".b64.json"), "w"))
+                os.remove(tmp)
     print("artifact build in", out)
 
 

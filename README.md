@@ -5,6 +5,7 @@ An interactive **3D human anatomy atlas** that runs in the browser, built for st
 - **Real anatomy.** 933 separately clickable structures from the MRI-derived [BodyParts3D](https://lifesciencedb.jp/bp3d/) dataset: every bone, about 420 muscle parts, tendons and ligaments, brain structures, heart and great vessels, lungs, digestive, urinary, endocrine and reproductive organs, and skin.
 - **Study notes for every structure.** Muscles have origin, insertion, action, nerve (with root values) and blood supply, plus clinical notes, mnemonics and high-yield facts. Bones have key landmarks. Brain structures have functions and lesion effects. Vessels have their course and what they supply or drain.
 - **Realistic rendering.** Muscle-fibre surface detail that follows each muscle's fibre direction, white tendons where muscles taper, wet-looking organs, and ambient-occlusion shadows in the creases. There's a ⚡ Fast mode for older phones.
+- **Male and female bodies.** Switch with ♂/♀ in the header. The **female body** (791 structures) is the Visible Human Female from the HuBMAP Human Reference Atlas. It has organs, vessels, a 283-region brain atlas, spinal cord, spine, pelvis, knees, the uterus, tubes, ovaries and their ligaments, and breast structure, with its own study notes, lessons and exam presets. It has no full skeleton or musculature, because no open female dataset has one. Nothing is borrowed from the male body to fill the gaps.
 - **Peripheral nerves.** A Nerves layer with 244 structures: the brachial plexus and every major arm and leg nerve down to the digital branches, the lumbosacral plexus, the spinal cord and cauda equina, the intercostal nerves, the sympathetic trunk and cranial nerves III–XII.
 - **Explore.** Rotate, zoom and tap anything. Turn body systems on and off, **hide** muscles to peel down to deeper layers, **isolate** a structure, and search all 900+ names.
 - **Muscle actions (12 animations).** The skeleton moves at its real joints while the muscles that produce the movement deform with it and bulge as they shorten. Prime movers glow red and antagonists blue, swapping as the movement reverses. Movements: jaw open/close, shoulder abduction/adduction, flexion/extension and rotation, elbow flexion/extension, forearm pronation/supination, wrist flexion/extension, hip flexion/extension and abduction/adduction, knee flexion/extension, ankle plantar/dorsiflexion, and foot inversion/eversion. You can play, pause, scrub and change speed, and any muscle's info panel has a "🎬 See it move" button. Joint pivots and axes are measured from the bones themselves (e.g. the ankle axis runs between the malleolar tips).
@@ -21,6 +22,7 @@ An interactive **3D human anatomy atlas** that runs in the browser, built for st
   Every question spotlights its structure: one side only, with the rest of the body faded so you can see what's being asked. A 👁 Context button brings the rest back.
 
   You can filter by system, region and difficulty. You earn XP, levels, a daily study streak and badges, and a **weak-spot review** brings back what you missed. Progress is saved in your browser.
+- **Exercise demos in 3D.** Each of the routine's 154 exercises plays on the skeleton (142 animated, 12 such as breathing and finger work highlight the muscles only). Stretched muscles show in blue, working muscles in red, and a note appears when the demo differs from how you'd really do it (e.g. "shown standing, done lying on your back"). The rig covers the spine, neck, jaw and right-side limbs.
 - **What hurts?** Type where it hurts ("outside of my knee when I run", "tennis elbow", "heel pain in the morning") or tap the spot on the body. You get:
   - the structures usually involved, highlighted in 3D
   - common causes and tips
@@ -59,13 +61,16 @@ css/style.css
 js/main.js            boot, layers, search, browse tree, labels, Explore mode
 js/viewer.js          three.js scene: materials/shaders, AO, picking (BVH), spotlight, slicing, camera
 js/learn.js           Learn mode (guided lessons + muscle-action player)
-js/motion.js          joint rig from bone landmarks, muscle deformation, movement library
+js/motion.js          joint rig (incl. spine & neck) from bone landmarks, muscle deformation, movements, exercise demos
 js/quiz.js            quiz modes, flashcards (spaced repetition), scoring, mastery tracking
 js/exam.js            timed practical exam: station staging, dissection, pins, answer grading
 js/painui.js          "What hurts?" mode + routine player
 js/util.js            helpers, study-note lookup, progress store
 js/data/kb.js         study notes (395 entries)
 js/data/pain.js       pain areas, exercises, red flags, text matcher
+js/data/exercise_poses.js  3D pose for every exercise
+js/data/kb_female.js, lessons_female.js  female-body study notes (308) and lessons (6)
+models/female/        female body models + parts.json
 js/data/lessons.js    guided lessons (29 lessons, 191 steps)
 js/data/kb_nerves.js  study notes for nerves (101 entries)
 js/data/lessons_nerves.js  nerve lessons (brachial plexus, injuries, lower limb, cranial nerves)

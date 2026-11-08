@@ -684,7 +684,11 @@ export class Viewer {
     }
     return best;
   }
-  focusSmart(ids) { this.focus(ids, { dir: this.bestDir(ids) }); }
+  // small structures get more surroundings in view so the camera doesn't end up inside neighbouring bone
+  focusSmart(ids) {
+    const r = this.boundsOf(ids).getBoundingSphere(new THREE.Sphere()).radius;
+    this.focus(ids, { dir: this.bestDir(ids), pad: r < 0.05 ? 3.2 : r < 0.1 ? 2.3 : 1.6 });
+  }
   _visibilityScore(ids, box, dir) {
     const set = new Set(ids);
     const targets = this._pickables(true);
