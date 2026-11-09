@@ -22,21 +22,17 @@ export function initPain(app) {
     el.innerHTML = `
       <div class="card">
         <h2>What's hurting?</h2>
-        <p class="muted">Describe it, or tap the spot on the body.</p>
-        <div class="pain-input">
+        <div class="pain-input" style="margin-top:10px">
           <input id="p-text" placeholder="e.g. outside of my knee when I run" value="${esc(st.text)}" />
           <button class="btn primary" id="p-go">Go</button>
         </div>
-        <div class="row" style="margin-top:8px">
-          <button class="btn tap-btn" id="p-tap">👆 Tap where it hurts</button>
-          <button class="btn" id="p-browse">Browse areas</button>
-        </div>
-        <div class="sev">Pain level <input type="range" min="0" max="10" value="${st.severity}" id="p-sev" /><b id="p-sev-v">${st.severity}</b></div>
+        <p class="muted tiny">…or tap the spot on the body. <button class="linkbtn" id="p-browse">Browse areas</button><button class="linkbtn hidden" id="p-tap"></button></p>
+        <div class="sev">Pain <input type="range" min="0" max="10" value="${st.severity}" id="p-sev" /><b id="p-sev-v">${st.severity}</b></div>
         <div class="chips region-chips hidden" id="p-areas"></div>
+        ${app.body === "female" ? `<p class="muted tiny">3D highlights and demos use the male body. <button class="linkbtn" id="p-tomale">Switch to male</button></p>` : ""}
       </div>
-      ${app.body === "female" ? `<div class="alert amber">The exercise guide works the same, but its 3D highlights use the muscles of the <b>male</b> body (the female dataset has almost none). <button class="btn" id="p-tomale">♂ Switch</button></div>` : ""}
       <div id="p-result"></div>
-      <p class="muted" style="font-size:11px">${esc(DISCLAIMER)}</p>`;
+      <p class="muted tiny">${esc(DISCLAIMER)}</p>`;
     const input = el.querySelector("#p-text");
     const go = () => { st.text = input.value; search(input.value); };
     el.querySelector("#p-go").onclick = go;
@@ -87,7 +83,7 @@ export function initPain(app) {
     if (!box) return;
     const r = st.region;
     if (!r) {
-      box.innerHTML = `<div class="card empty"><div class="big">🩺</div>Tell me where it hurts and I'll show you the muscles involved and a routine you can do at home.</div>`;
+      box.innerHTML = `<p class="muted" style="margin:0 0 14px">You'll see the muscles involved on the body and a short routine to do at home.</p>`;
       return;
     }
     const sev = st.severity;
@@ -97,20 +93,19 @@ export function initPain(app) {
     const flags = [...(r.redFlags || [])];
     let html = `${sevNote}<div class="card">
       <h2>${esc(r.name)}</h2>
-      ${st.others.length ? `<div class="chips region-chips">Or did you mean: ${st.others.map((o, i) => `<button data-o="${i}">${esc(o.name)}</button>`).join("")}</div>` : ""}
-      <h4>Structures that are often involved</h4>
-      <div class="parts-list">${[...new Set(r.structures)].map((s) => `<button data-s="${esc(s)}">${esc(pretty(s))}</button>`).join("")}</div>
-      <h4>Common causes</h4>
-      ${(r.causes || []).map((c) => `<p><b>${esc(c.name)}</b> — <span class="muted">${esc(c.note)}</span></p>`).join("")}
-      ${r.tips?.length ? `<h4>Tips</h4>${r.tips.map((t) => `<p>• ${esc(t)}</p>`).join("")}` : ""}
-    </div>
-    <div class="card">
-      <h4 style="margin-top:0">Your routine · ${r.exercises.length} exercises</h4>
-      <button class="btn primary wide" id="p-start">▶ Start guided routine</button>
+      ${st.others.length ? `<div class="chips region-chips">Or: ${st.others.map((o, i) => `<button data-o="${i}">${esc(o.name)}</button>`).join("")}</div>` : ""}
+      <button class="btn primary wide" style="margin-top:12px" id="p-start">Start guided routine · ${r.exercises.length} exercises</button>
       <div id="p-ex"></div>
-    </div>
-    <div class="alert red"><b>🚩 See a professional${r.seeA ? ` (${esc(r.seeA)})` : ""} if:</b><ul>${flags.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
-      <details style="margin-top:6px"><summary class="muted" style="cursor:pointer">General warning signs</summary><ul>${GLOBAL_RED_FLAGS.map((f) => `<li>${esc(f)}</li>`).join("")}</ul></details>
+      <details class="fold"><summary>Why it hurts</summary>
+        ${(r.causes || []).map((c) => `<p><b>${esc(c.name)}</b> — <span class="muted">${esc(c.note)}</span></p>`).join("")}
+        ${r.tips?.length ? `<h4>Tips</h4>${r.tips.map((t) => `<p>• ${esc(t)}</p>`).join("")}` : ""}
+        <h4>Structures involved</h4>
+        <div class="parts-list">${[...new Set(r.structures)].map((s) => `<button data-s="${esc(s)}">${esc(pretty(s))}</button>`).join("")}</div>
+      </details>
+      <details class="fold flags"><summary>When to see a ${esc(r.seeA || "professional")}</summary>
+        <ul>${flags.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
+        <h4>General warning signs</h4><ul>${GLOBAL_RED_FLAGS.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
+      </details>
     </div>`;
     box.innerHTML = html;
     box.querySelectorAll("[data-o]").forEach((b) => (b.onclick = () => showRegion(st.others[+b.dataset.o], [st.region, ...st.others.filter((_, i) => i !== +b.dataset.o)])));
@@ -126,7 +121,7 @@ export function initPain(app) {
         <div class="ex-head"><b>${i + 1}. ${esc(ex.name)}</b><span class="type ${esc(ex.type)}">${esc(ex.type)}</span></div>
         <div class="muted" style="font-size:12px">${doseText(ex.dose)} · ${"●".repeat(ex.level || 1)}${"○".repeat(3 - (ex.level || 1))}</div>
         <div class="ex-body hidden"><ol>${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>${ex.cue ? `<div class="cue">💡 ${esc(ex.cue)}</div>` : ""}</div>
-        ${POSES[`${r.id}|${ex.name}`]?.dofs ? `<button class="btn demo-btn">🎬 Show me in 3D</button>` : ""}
+        ${POSES[`${r.id}|${ex.name}`]?.dofs ? `<button class="linkbtn demo-btn" title="Show this exercise on the 3D body">▶ 3D</button>` : ""}
       </div>`);
       card.querySelector(".demo-btn")?.addEventListener("click", (e) => {
         e.stopPropagation();

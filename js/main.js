@@ -125,8 +125,8 @@ function buildLayers() {
   wrap.innerHTML = "";
   for (const s of SYSTEM_ORDER) {
     if (!counts[s]) continue;
-    const row = h(`<label class="layer"><input type="checkbox" data-sys="${s}" ${app.viewer.systemsVisible.has(s) ? "checked" : ""}/>
-      <span class="swatch" style="background:${sysColor(s)}"></span>${esc(sysLabel(s))}<span class="count">${counts[s]}</span></label>`);
+    const row = h(`<label class="layer" title="${counts[s]} structures"><input type="checkbox" data-sys="${s}" ${app.viewer.systemsVisible.has(s) ? "checked" : ""}/>
+      <span class="swatch" style="background:${sysColor(s)}"></span>${esc(sysLabel(s))}</label>`);
     row.querySelector("input").addEventListener("change", (e) => app.viewer.setSystemVisible(s, e.target.checked));
     wrap.appendChild(row);
   }
@@ -300,30 +300,26 @@ function renderExplore() {
   const id = app.selectedId;
   if (!id) {
     const mastered = Object.values(store.mastery).filter((m) => m.c >= 3 && m.c > m.w).length;
+    const badges = achievements();
+    const got = badges.filter((a) => a.got).length;
     el.innerHTML = `
       <div class="card">
-        <h2>Welcome to the atlas 👋</h2>
+        <h2>Tap any structure</h2>
         <p class="muted">${app.body === "female"
-          ? `The <b>female</b> body — ${app.parts.length} structures from the Visible Human Female (HRA). It has organs, vessels, brain, spine, pelvis and knees, but no full skeleton or muscles: those aren't in any open female dataset yet. Switch with ♂/♀ at the top.`
-          : `A real 3D human body built from MRI-derived data — ${app.parts.length} selectable structures. Switch to the female body with ♂/♀ at the top.`}</p>
-        <h4>How to use it</h4>
-        <p>• <b>Tap</b> any structure for origin, insertion, action, nerve and clinical notes.<br>
-           • <b>Hide</b> superficial muscles to peel down to deeper layers.<br>
-           • Toggle <b>layers</b> (left) — organs, brain, heart & vessels.<br>
-           • <b>Double-tap</b> to zoom onto a part.</p>
-        <div class="row"><button class="btn primary" id="golearn">📚 Start a lesson</button><button class="btn" id="goquiz">🎯 Quiz</button><button class="btn" id="rand">🎲 Random</button></div>
+          ? `Female body · ${app.parts.length} structures. Organs, vessels, brain, spine, pelvis and knees — no open female dataset has a full skeleton or muscles yet.`
+          : `Male body · ${app.parts.length} structures from MRI-derived data.`} Drag to rotate, pinch to zoom.</p>
+        <div class="row"><button class="btn primary" id="golearn">Start a lesson</button><button class="btn" id="goquiz">Quiz me</button><button class="btn" id="rand">Random</button></div>
       </div>
       <div class="card">
-        <h4 style="margin-top:0">Your progress</h4>
-        <div class="stats"><div><b>${levelFor(store.xp)}</b>Level</div><div><b>${mastered}</b>Mastered</div><div><b>🔥 ${currentStreak()}</b>Day streak</div></div>
-        <p class="muted" style="font-size:12px">A structure counts as mastered after 3+ correct answers. Study every day to keep your streak.</p>
-        <h4>Badges</h4>
-        <div class="badges">${achievements().map((a) => `<div class="badge ${a.got ? "got" : ""}" title="${esc(a.desc)}"><span>${a.icon}</span>${esc(a.name)}</div>`).join("")}</div>
+        <div class="mini-stats"><span><b>Lv ${levelFor(store.xp)}</b></span><span><b>${mastered}</b> mastered</span><span>🔥 <b>${currentStreak()}</b> day streak</span></div>
+        <details class="fold"><summary>Badges · ${got}/${badges.length}</summary>
+          <div class="badges">${badges.map((a) => `<div class="badge ${a.got ? "got" : ""}" title="${esc(a.desc)}"><span>${a.icon}</span>${esc(a.name)}</div>`).join("")}</div>
+        </details>
       </div>`;
     el.querySelector("#rand").onclick = () => {
       const pool = app.parts.filter((p) => p.kb && app.viewer.systemsVisible.has(p.system) && p.size > 0.08);
       const p = pool[(Math.random() * pool.length) | 0];
-      selectGroup(groupIdsFor(p));
+      if (p) selectGroup(groupIdsFor(p));
     };
     el.querySelector("#goquiz").onclick = () => switchMode("quiz");
     el.querySelector("#golearn").onclick = () => switchMode("learn");
@@ -333,37 +329,33 @@ function renderExplore() {
   const kb = p.kb;
   const group = app.parts.filter((q) => q.kb && q.kb === kb);
   const sides = [...new Set(group.map((q) => q.side).filter(Boolean))];
-  const title = pretty(p.name);
-  let html = `<div class="card">
-    <h2>${esc(title)}</h2>
-    <div class="chips"><span class="chip sys" style="background:${sysColor(p.system)}aa">${esc(sysLabel(p.system))}</span>
-      ${p.side ? `<span class="chip">${p.side} side</span>` : ""}${kb?.region ? `<span class="chip">${esc(kb.region)}</span>` : ""}
-      <span class="chip" title="Foundational Model of Anatomy ID">${p.id}</span></div>`;
-  if (kb) {
-    if (kb.title.toLowerCase() !== p.base.toLowerCase()) html += `<p class="muted">Part of <b style="color:var(--text)">${esc(kb.title)}</b></p>`;
-    if (kb.summary) html += `<p>${esc(kb.summary)}</p>`;
-    const rows = FIELD_LABELS.filter(([k]) => kb[k]).map(([k, l]) => `<dt>${l}</dt><dd>${esc(kb[k])}</dd>`).join("");
-    if (rows) html += `<dl class="kv">${rows}</dl>`;
-    if (kb.features?.length) html += `<h4>Key features</h4><p>${kb.features.map(esc).join(" · ")}</p>`;
-    if (kb.clinical) html += `<div class="note clin"><b>Clinical:</b> ${esc(kb.clinical)}</div>`;
-    if (kb.mnemonic) html += `<div class="note"><b>Mnemonic:</b> ${esc(kb.mnemonic)}</div>`;
-    if (kb.facts?.length) html += `<h4>Did you know?</h4>${kb.facts.map((f) => `<p>✨ ${esc(f)}</p>`).join("")}`;
-    if (group.length > 1) {
-      html += `<h4>All parts (${group.length})</h4><div class="parts-list">${group
-        .map((q) => `<button data-id="${q.id}" class="${q.id === id ? "on" : ""}">${esc(pretty(q.name))}</button>`).join("")}</div>`;
-    }
-  } else {
-    html += `<p class="muted">${esc(sysBlurb(p.system))}</p>`;
-  }
-  html += `<div class="row">
-      <button class="btn" id="b-focus">🎯 Focus</button>
-      <button class="btn" id="b-hide">🙈 Hide</button>
-      <button class="btn" id="b-iso">🔍 Isolate</button>
-      ${sides.length === 2 ? `<button class="btn" id="b-both">↔ Both sides</button>` : ""}
-      <button class="btn" id="b-hurt">🤕 Hurts here?</button>
-      ${app.body === "male" && app.motion?.movesFor(p.base).length ? `<button class="btn" id="b-move">🎬 See it move</button>` : ""}
-    </div></div>`;
-  el.innerHTML = html;
+  const rows = kb ? FIELD_LABELS.filter(([k]) => kb[k]) : [];
+  const main = rows.slice(0, 4), extra = rows.slice(4);
+  const dl = (list) => (list.length ? `<dl class="kv">${list.map(([k, l]) => `<dt>${l}</dt><dd>${esc(kb[k])}</dd>`).join("")}</dl>` : "");
+  const more = kb && (extra.length || kb.features?.length || kb.clinical || kb.mnemonic || kb.facts?.length || group.length > 1);
+  const canMove = app.body === "male" && app.motion?.movesFor(p.base).length;
+  el.innerHTML = `<div class="card">
+    <div class="eyebrow"><span class="dotc" style="background:${sysColor(p.system)}"></span>${esc(sysLabel(p.system))}${p.side ? ` · ${p.side}` : ""}${kb && kb.title.toLowerCase() !== p.base.toLowerCase() ? ` · part of ${esc(kb.title)}` : ""}</div>
+    <h2>${esc(pretty(p.name))}</h2>
+    ${kb?.summary ? `<p>${esc(kb.summary)}</p>` : kb ? "" : `<p class="muted">${esc(sysBlurb(p.system))}</p>`}
+    ${dl(main)}
+    <div class="actions">
+      <button class="btn" id="b-focus" title="Zoom in (F)">Focus</button>
+      <button class="btn" id="b-iso" title="Show only this (I)">Isolate</button>
+      <button class="btn" id="b-hide" title="Hide it to see underneath (H)">Hide</button>
+      ${canMove ? `<button class="btn" id="b-move">See it move</button>` : ""}
+    </div>
+    ${more ? `<details class="fold"><summary>More</summary>
+      ${dl(extra)}
+      ${kb.features?.length ? `<h4>Key features</h4><p>${kb.features.map(esc).join(" · ")}</p>` : ""}
+      ${kb.clinical ? `<div class="note clin"><b>Clinical:</b> ${esc(kb.clinical)}</div>` : ""}
+      ${kb.mnemonic ? `<div class="note"><b>Mnemonic:</b> ${esc(kb.mnemonic)}</div>` : ""}
+      ${kb.facts?.length ? `<h4>Did you know?</h4>${kb.facts.map((f) => `<p>${esc(f)}</p>`).join("")}` : ""}
+      ${group.length > 1 ? `<h4>Parts (${group.length})</h4><div class="parts-list">${group.map((q) => `<button data-id="${q.id}" class="${q.id === id ? "on" : ""}">${esc(pretty(q.name))}</button>`).join("")}</div>` : ""}
+      <div class="row">${sides.length === 2 ? `<button class="btn" id="b-both">Both sides</button>` : ""}<button class="btn" id="b-hurt">Hurts here?</button></div>
+      <p class="muted tiny">ID ${p.id}</p>
+    </details>` : `<div class="row"><button class="btn" id="b-hurt">Hurts here?</button></div>`}
+  </div>`;
   el.querySelectorAll(".parts-list button").forEach((b) => (b.onclick = () => { selectPart(b.dataset.id); app.viewer.focusSmart([b.dataset.id]); }));
   el.querySelector("#b-focus").onclick = () => app.viewer.focus([id], { pad: 2.2 });
   el.querySelector("#b-hide").onclick = hideSelected;
@@ -387,6 +379,10 @@ function hideSelected() {
 // ---------- toolbar / keys ----------
 function bindToolbar() {
   document.querySelectorAll("[data-view]").forEach((b) => (b.onclick = () => app.viewer.setView(b.dataset.view)));
+  $("#btn-turn").onclick = () => {
+    const v = app.viewer;
+    v.setView(v.camera.position.z - v.controls.target.z >= 0 ? "back" : "front");
+  };
   $("#btn-hide").onclick = hideSelected;
   $("#btn-isolate").onclick = () => {
     if (app.viewer.isolated) return app.viewer.isolate(null);

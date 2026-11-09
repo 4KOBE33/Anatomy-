@@ -4,12 +4,12 @@ import { initExam } from "./exam.js";
 import { pretty, sysLabel, sysColor, REGIONS, store, saveStore, addXP, recordAnswer, $, h, esc, toast, shuffle } from "./util.js";
 
 const MODES = [
-  ["find", "🎯 Find it", "We name it — you click it on the body."],
-  ["name", "🏷️ Name it", "We highlight it — you pick the name."],
-  ["facts", "🧠 Facts", "Origins, insertions, actions, nerves."],
-  ["mix", "🔀 Mix", "All three, shuffled."],
-  ["cards", "🃏 Flashcards", "Spaced repetition — review what's due today."],
-  ["exam", "⏱️ Practical exam", "Timed bell-ringer: pinned structures, type the answer."],
+  ["find", "Find it", "We name a structure — you tap it on the body."],
+  ["name", "Name it", "We highlight a structure — you pick its name."],
+  ["facts", "Facts", "Origins, insertions, actions and nerve supply."],
+  ["mix", "Mix", "Find it, Name it and Facts, shuffled."],
+  ["cards", "Flashcards", "Spaced repetition: review what's due today."],
+  ["exam", "Practical exam", "Timed bell-ringer: a pin on the body, type the answer."],
 ];
 const DIFF = [["easy", "Big structures"], ["med", "Medium"], ["hard", "Everything (tiny too)"]];
 const QUIZ_SYSTEMS = ["muscular", "skeletal", "nerves", "nervous", "cardio", "respiratory", "digestive", "urinary", "connective", "endocrine", "reproductive", "lymphatic"];
@@ -78,22 +78,27 @@ export function initQuiz(app) {
     if (s.mode === "exam") return exam.renderSetup();
     const pool = unitPool();
     const weak = Object.entries(store.mastery).filter(([, m]) => m.w > 0 && m.w >= m.c).length;
+    const cur = MODES.find(([k]) => k === s.mode) || MODES[0];
+    const sysNames = [...s.systems].map(sysLabel).join(", ");
+    const regName = REGIONS.find(([k]) => k === s.region)?.[1];
+    const diffName = DIFF.find(([k]) => k === s.diff)?.[1];
     el.innerHTML = `
       <div class="card">
-        <h2>Quiz yourself</h2>
-        <p class="muted">10 questions · faster answers + streaks = more XP.</p>
-        <h4>Mode</h4><div class="opt-grid" id="q-modes"></div>
-        <h4>Systems</h4><div class="seg-pick" id="q-sys"></div>
-        <h4>Region</h4><div class="seg-pick" id="q-reg"></div>
-        <h4>Difficulty</h4><div class="seg-pick" id="q-diff"></div>
-        <p class="muted" style="margin-top:10px">${s.mode === "cards" ? `${cardDeck().filter(isDue).length} cards due · ${cardDeck().filter((c) => !store.cards?.[c.key]).length} new` : `${pool.length} structures in this pool.`}</p>
-        <button class="btn primary wide" id="q-start" ${pool.length < 4 && s.mode !== "cards" ? "disabled" : ""}>${s.mode === "cards" ? "Start reviewing 🃏" : "Start round ▶"}</button>
-        ${weak ? `<button class="btn wide" style="margin-top:8px" id="q-weak">🔁 Review my ${weak} weak spot${weak > 1 ? "s" : ""}</button>` : ""}
-      </div>
-      <div class="card"><h4 style="margin-top:0">Best round</h4><div class="score-big">${store.best || 0}</div></div>`;
+        <h2>Quiz</h2>
+        <div class="mode-tiles" id="q-modes"></div>
+        <p class="muted" style="margin:10px 0 0">${esc(cur[2])}</p>
+        <details class="fold" id="q-opts" ${st.optsOpen ? "open" : ""}><summary>Options · ${esc(sysNames)}${s.mode === "cards" ? "" : ` · ${esc(regName)} · ${esc(diffName)}`}</summary>
+          <h4>Systems</h4><div class="seg-pick small" id="q-sys"></div>
+          ${s.mode === "cards" ? "" : `<h4>Region</h4><div class="seg-pick small" id="q-reg"></div><h4>Difficulty</h4><div class="seg-pick small" id="q-diff"></div>`}
+        </details>
+        <button class="btn primary wide" style="margin-top:14px" id="q-start" ${pool.length < 4 && s.mode !== "cards" ? "disabled" : ""}>${s.mode === "cards" ? "Start reviewing" : "Start"}</button>
+        <p class="muted tiny" style="text-align:center">${s.mode === "cards" ? `${cardDeck().filter(isDue).length} due · ${cardDeck().filter((c) => !store.cards?.[c.key]).length} new` : `${pool.length} structures · 10 questions${store.best ? ` · best ${store.best}` : ""}`}</p>
+        ${weak ? `<button class="btn wide" id="q-weak">Review ${weak} weak spot${weak > 1 ? "s" : ""}</button>` : ""}
+      </div>`;
+    el.querySelector("#q-opts").addEventListener("toggle", (e) => (st.optsOpen = e.target.open));
     const modes = el.querySelector("#q-modes");
-    for (const [k, l, d] of MODES) {
-      const b = h(`<button class="opt ${s.mode === k ? "right" : ""}">${l}<br><span class="muted" style="font-weight:500;font-size:12px">${d}</span></button>`);
+    for (const [k, l] of MODES) {
+      const b = h(`<button class="${s.mode === k ? "on" : ""}">${l}</button>`);
       b.onclick = () => { s.mode = k; renderSetup(); };
       modes.appendChild(b);
     }
@@ -105,13 +110,13 @@ export function initQuiz(app) {
       sysEl.appendChild(b);
     }
     const regEl = el.querySelector("#q-reg");
-    for (const [k, l] of REGIONS) {
+    for (const [k, l] of regEl ? REGIONS : []) {
       const b = h(`<button class="${s.region === k ? "on" : ""}">${l}</button>`);
       b.onclick = () => { s.region = k; renderSetup(); };
       regEl.appendChild(b);
     }
     const dEl = el.querySelector("#q-diff");
-    for (const [k, l] of DIFF) {
+    for (const [k, l] of dEl ? DIFF : []) {
       const b = h(`<button class="${s.diff === k ? "on" : ""}">${l}</button>`);
       b.onclick = () => { s.diff = k; renderSetup(); };
       dEl.appendChild(b);

@@ -9,6 +9,8 @@ const ALL_LESSONS = [...LESSONS_MAIN, ...LESSONS_NERVES, ...LESSONS_FEMALE];
 import { pretty, store, saveStore, addXP, $, h, esc, toast } from "./util.js";
 import { initMotion } from "./motion.js";
 
+const SHORT = { jaw: "Jaw", "sh-abd": "Shoulder abduction", "sh-flex": "Shoulder flexion", "sh-rot": "Shoulder rotation", elbow: "Elbow",
+  pron: "Forearm rotation", wrist: "Wrist", "hip-flex": "Hip flexion", "hip-abd": "Hip abduction", knee: "Knee", ankle: "Ankle", subtalar: "Foot inversion" };
 const CATS = ["Upper limb", "Lower limb", "Trunk & back", "Head & neck", "Skeleton", "Heart & vessels", "Organs", "Brain"];
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -54,34 +56,37 @@ export function initLearn(app) {
     app.setLabels([]);
     const done = Object.values(store.lessons || {}).filter((l) => l.done).length;
     el.innerHTML = `<div class="card">
-        <h2>Guided lessons</h2>
-        <p class="muted">${LESSONS.length} bite-sized walkthroughs. Each step lights up the structures in 3D and fades everything else, then you can quiz yourself on exactly that group.</p>
-        <div class="stats"><div><b>${done}/${LESSONS.length}</b>Completed</div><div><b>${LESSONS.reduce((a, l) => a + l.steps.length, 0)}</b>Steps</div><div><b>+50</b>XP each</div></div>
+        <h2>Learn</h2>
+        <p class="muted">${done} of ${LESSONS.length} lessons done. Each step lights up its structures on the body.</p>
       </div>
-      <div class="card"><h4 style="margin-top:0">🎬 Muscle actions</h4>
-        ${app.body === "male" ? `<p class="muted" style="font-size:13px">Watch the skeleton move while the muscles that do it contract — prime movers glow red, antagonists blue.</p>
-        <div class="move-grid" id="l-moves"></div>` : `<p class="muted" style="font-size:13px">Muscle actions need a full skeleton and musculature, which only the male body has. <button class="btn" id="l-tomale">♂ Switch to the male body</button></p>`}</div>
+      ${app.body === "male"
+        ? `<div class="card"><div class="sub">Muscle actions</div><div class="chip-row" id="l-moves"></div></div>`
+        : `<div class="card"><p class="muted tiny" style="margin:0">Muscle actions need the male body's full skeleton. <button class="linkbtn" id="l-tomale">Switch to male</button></p></div>`}
       <div id="l-list"></div>`;
     const mg = el.querySelector("#l-moves");
     el.querySelector("#l-tomale")?.addEventListener("click", () => app.loadBody("male"));
     for (const m of mg ? motion.MOVES : []) {
-      const b = h(`<button class="move-btn"><b>${esc(m.name)}</b><span class="meta">${esc(m.region)}${store.movesSeen?.[m.id] ? " · ✓" : ""}</span></button>`);
+      const b = h(`<button class="chip-btn ${store.movesSeen?.[m.id] ? "seen" : ""}" title="${esc(m.name)}">${esc(SHORT[m.id] || m.name)}</button>`);
       b.onclick = () => playMove(m);
       mg.appendChild(b);
     }
     const list = el.querySelector("#l-list");
+    let first = true;
     for (const cat of CATS) {
-      const ls = LESSONS.filter((l) => l.category === cat);
+      const ls = LESSONS.filter((x) => x.category === cat);
       if (!ls.length) continue;
-      list.appendChild(h(`<div class="lesson-cat">${esc(cat)}</div>`));
-      for (const l of ls) {
-        const isDone = store.lessons?.[l.id]?.done;
-        const b = h(`<button class="lesson" data-id="${esc(l.id)}"><span class="em">${l.emoji || "📘"}</span>
-          <span><b>${esc(l.title)}</b><div class="meta">${l.steps.length} steps · ~${l.minutes || 3} min · ${"●".repeat(l.level || 1)}${"○".repeat(3 - (l.level || 1))}</div></span>
+      const n = ls.filter((x) => store.lessons?.[x.id]?.done).length;
+      const det = h(`<details class="fold lesson-group" ${first ? "open" : ""}><summary>${esc(cat)} <span class="count-pill">${n}/${ls.length}</span></summary></details>`);
+      first = false;
+      for (const x of ls) {
+        const isDone = store.lessons?.[x.id]?.done;
+        const b = h(`<button class="lesson" data-id="${esc(x.id)}"><span class="em">${x.emoji || "📘"}</span>
+          <span class="lt"><b>${esc(x.title)}</b><span class="meta">${x.steps.length} steps · ~${x.minutes || 3} min</span></span>
           ${isDone ? `<span class="done">✓</span>` : ""}</button>`);
-        b.onclick = () => start(l);
-        list.appendChild(b);
+        b.onclick = () => start(x);
+        det.appendChild(b);
       }
+      list.appendChild(det);
     }
   }
 
