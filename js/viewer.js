@@ -288,15 +288,31 @@ export class Viewer {
     rim2.position.set(2.4, 0.8, -2.2);
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0x40302a, 0.45);
     this.scene.add(key, fillL, rim, rim2, hemi);
+    // soft glow on the floor under the body
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = 256;
+    const g2 = cv.getContext("2d");
+    const grad = g2.createRadialGradient(128, 128, 0, 128, 128, 128);
+    grad.addColorStop(0, "rgba(140,170,220,0.55)");
+    grad.addColorStop(0.45, "rgba(90,120,170,0.18)");
+    grad.addColorStop(1, "rgba(60,80,120,0)");
+    g2.fillStyle = grad;
+    g2.fillRect(0, 0, 256, 256);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.002;
+    floor.renderOrder = -1;
+    floor.raycast = () => {};
+    this.scene.add(floor);
 
     const c = (this.controls = new OrbitControls(this.camera, r.domElement));
     c.enableDamping = true;
     c.dampingFactor = 0.09;
     c.minDistance = 0.06;
-    c.maxDistance = 6;
+    c.maxDistance = 10;
     c.zoomToCursor = true;
     c.rotateSpeed = 0.8;
-    c.addEventListener("start", () => (this._tween = null));
+    c.addEventListener("start", () => { this._tween = null; this.autoFit = false; });
     c.addEventListener("change", () => this.invalidate());
 
     this.raycaster = new THREE.Raycaster();
@@ -350,19 +366,28 @@ export class Viewer {
     this.renderer.setSize(w, h, false);
     this.composer?.setPixelRatio(this.renderer.getPixelRatio());
     this.composer?.setSize(w, h);
-    this.camera.aspect = w / h;
-    // On phones a bottom sheet covers part of the canvas: shift the projection so the
-    // orbit target sits in the middle of the area that's still visible.
-    const inset = Math.round(this.bottomInset || 0);
-    if (inset > 0) this.camera.setViewOffset(w, h + inset, 0, inset, w, h);
-    else this.camera.clearViewOffset();
+    // Floating panels cover parts of the canvas: shift the projection so the orbit target sits in
+    // the middle of the area that's still open. The full virtual frame keeps the true aspect ratio.
+    const ins = this.insets || { left: 0, right: 0, top: 0, bottom: 0 };
+    const dx = (ins.left - ins.right) / 2, dy = (ins.top - ins.bottom) / 2;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+      const fw = w + 2 * Math.abs(dx), fh = h + 2 * Math.abs(dy);
+      this.camera.aspect = fw / fh;
+      this.camera.setViewOffset(fw, fh, Math.abs(dx) - dx, Math.abs(dy) - dy, w, h);
+    } else {
+      this.camera.aspect = w / h;
+      this.camera.clearViewOffset();
+    }
     this.camera.updateProjectionMatrix();
     this.invalidate();
   }
-  setBottomInset(px) {
-    if (Math.abs((this.bottomInset || 0) - px) < 2) return;
-    this.bottomInset = px;
+  setInsets(ins) {
+    const o = this.insets || {};
+    if (["left", "right", "top", "bottom"].every((k) => Math.abs((o[k] || 0) - (ins[k] || 0)) < 2)) return;
+    this.insets = { left: 0, right: 0, top: 0, bottom: 0, ...ins };
     this.resize();
+    // still on a default view (user hasn't moved the camera): re-fit to the new open area
+    if (this.autoFit && this.bodyBox) this.setView(this.lastView || "front");
   }
 
   invalidate() { this._dirty = true; }
@@ -659,6 +684,7 @@ export class Viewer {
     return box;
   }
   focus(ids, { pad = 1.6, dir = null } = {}) {
+    this.autoFit = false;
     const box = this.boundsOf(ids);
     if (box.isEmpty()) return;
     const sphere = box.getBoundingSphere(new THREE.Sphere());
@@ -713,9 +739,17 @@ export class Viewer {
     const b = this.bodyBox;
     const halfH = b ? (b.max.y - b.min.y) / 2 + 0.05 : 0.92;
     const halfW = b ? Math.max(Math.abs(b.min.x), Math.abs(b.max.x)) : 0.42;
-    return Math.max(halfH / Math.tan(vf), halfW / Math.tan(hf)) * 1.04;
+    // only the part of the canvas not covered by panels counts
+    const { clientWidth: w, clientHeight: h } = this.container;
+    const ins = this.insets || { left: 0, right: 0, top: 0, bottom: 0 };
+    const fw = w + Math.abs(ins.left - ins.right), fh = h + Math.abs(ins.top - ins.bottom);
+    const visW = Math.max(120, w - ins.left - ins.right), visH = Math.max(120, h - ins.top - ins.bottom);
+    const tv = Math.tan(vf) * (visH / fh), th = Math.tan(hf) * (visW / fw);
+    return Math.max(halfH / tv, halfW / th) * 1.08;
   }
   setView(name) {
+    this.autoFit = true;
+    this.lastView = name;
     const h = this.bodyBox ? this.bodyBox.max.y : 1.72;
     const t = new THREE.Vector3(0, h * 0.5, 0);
     const D = this.fitDistance();

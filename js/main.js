@@ -107,6 +107,7 @@ async function loadBody(body, first = false) {
     $("#load-pct").textContent = Math.round(f * 100) + "%";
     $("#loadfill").style.width = f * 100 + "%";
   }, cfg.base);
+  updateInset();
   v.setView("front");
   $("#loading").classList.add("hidden");
   const btn = $("#btn-body");
@@ -433,13 +434,18 @@ function bindViewControls() {
   });
 }
 
-// Keep the 3D focus point above the bottom sheet on phones.
+// Keep the 3D focus point in the open area between the floating panels (above the sheet on phones).
 function updateInset() {
   const mobile = matchMedia("(max-width: 820px)").matches;
-  const panel = $("#panel");
-  const stageH = $("#stage").clientHeight;
-  const inset = mobile && !panel.classList.contains("collapsed") ? Math.min(panel.offsetHeight, stageH * 0.5) * 0.85 : 0;
-  app.viewer?.setBottomInset(inset);
+  const panel = $("#panel"), drawer = $("#drawer");
+  const W = window.innerWidth, H = window.innerHeight;
+  if (mobile) {
+    const bottom = panel.classList.contains("collapsed") ? 60 : Math.min(panel.offsetHeight + 8, H * 0.5);
+    app.viewer?.setInsets({ top: 56, bottom });
+  } else {
+    const d = drawer.getBoundingClientRect(), p = panel.getBoundingClientRect();
+    app.viewer?.setInsets({ left: d.right + 8, right: W - p.left + 56, top: 64, bottom: 0 });
+  }
 }
 new ResizeObserver(updateInset).observe(document.querySelector("#panel"));
 window.addEventListener("resize", updateInset);

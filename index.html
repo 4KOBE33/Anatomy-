@@ -6,6 +6,9 @@
   <title>Anatomy 3D — Study Atlas</title>
   <meta name="description" content="Interactive 3D human anatomy atlas with quizzes and an exercise coach." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='14' r='9' fill='%23ff6b5b'/><path d='M20 26h24l-4 18h-4l-2 16h-4l-2-16h-4z' fill='%23ff6b5b'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" />
   <link rel="stylesheet" href="css/style.css" />
   <script type="importmap">
     {
@@ -19,8 +22,8 @@
 </head>
 <body>
   <header class="topbar">
-    <button class="icon-btn only-mobile" id="btn-drawer" aria-label="Layers and search">☰</button>
-    <div class="brand"><span class="brand-dot"></span>Anatomy<b>3D</b></div>
+    <button class="icon-btn only-mobile" id="btn-drawer" aria-label="Layers and search"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+    <div class="brand"><span class="brand-dot"></span>Anatomy <b>3D</b></div>
     <nav class="tabs" role="tablist">
       <button role="tab" class="tab active" data-mode="explore">Explore</button>
       <button role="tab" class="tab" data-mode="learn">Learn</button>
@@ -87,12 +90,12 @@
         <div class="loadbar"><div id="loadfill"></div></div>
       </div>
       <div class="toolbar">
-        <button data-view="front" title="Reset the view">⟲</button>
-        <button id="btn-turn" title="Turn around (front / back)">⇄</button>
+        <button data-view="front" title="Reset the view" aria-label="Reset the view"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button id="btn-turn" title="Turn around (front / back)" aria-label="Turn around"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></button>
         <span class="tb-gap"></span>
-        <button id="btn-hide" title="Hide the selected structure (H)">◌</button>
-        <button id="btn-isolate" title="Show only the selected structure (I)">◎</button>
-        <button id="btn-showall" title="Show everything again (A)">↺</button>
+        <button id="btn-hide" title="Hide the selected structure (H)" aria-label="Hide selected"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.9 9.9a3 3 0 1 0 4.2 4.2"/><path d="M10.7 5.1A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13 13 0 0 1-1.7 2.7"/><path d="M6.6 6.6A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="m2 2 20 20"/></svg></button>
+        <button id="btn-isolate" title="Show only the selected structure (I)" aria-label="Isolate selected"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg></button>
+        <button id="btn-showall" title="Show everything again (A)" aria-label="Show everything"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <div class="hint" id="hint">Drag to rotate · pinch or scroll to zoom · tap a structure</div>
     </section>

@@ -368,6 +368,7 @@ export function initMotion(app) {
     const hf = Math.atan(Math.tan(fov) * v.camera.aspect);
     const dist = (st.rig.radius * 1.15) / Math.sin(Math.min(fov, hf));
     const c = st.rig.pivot.clone();
+    v.autoFit = false;
     v._animateTo(c, c.clone().addScaledVector(dir, dist));
     v.onTick = tick;
     setPhase("a");
@@ -413,6 +414,7 @@ export function initMotion(app) {
     const hf = Math.atan(Math.tan(fov) * v.camera.aspect);
     const r = prox === "lumbar" ? 0.95 : st.rig.radius;
     const c = prox === "lumbar" ? V(0, 0.95, 0) : st.rig.pivot.clone();
+    v.autoFit = false;
     v._animateTo(c, c.clone().addScaledVector(dir.normalize(), (r * 1.15) / Math.sin(Math.min(fov, hf))));
     v.onTick = tick;
     return true;
