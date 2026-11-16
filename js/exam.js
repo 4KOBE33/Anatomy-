@@ -1,6 +1,7 @@
 // Timed practical exam ("bell-ringer" / tag test): each station pins one structure on a dissected 3D
 // specimen; you type the answer from memory before the bell. No going back, graded at the end.
 import { pretty, store, saveStore, addXP, recordAnswer, $, h, esc, shuffle } from "./util.js";
+import { icon } from "./icons.js";
 
 const PRESETS = [
   { id: "quick", name: "Quick spotter", desc: "10 stations · 45 s · big muscles & bones", n: 10, secs: 45, systems: ["muscular", "skeletal"], region: "all", min: 0.14, second: false },
@@ -159,7 +160,7 @@ export function initExam(app, el, back) {
     const hist = store.exams || [];
     const best = hist.length ? Math.max(...hist.map((e) => e.pct)) : null;
     el.innerHTML = `<div class="card">
-        <h2>⏱️ Practical exam</h2>
+        <h2>Practical exam</h2>
         <p class="muted">Like a bell-ringer: each station pins a structure on a dissected specimen. Type the answer before the bell — no options, no going back. Pass mark ${PASS}%.</p>
         <div class="opt-grid" id="x-presets"></div>
         <label class="check-row"><input type="checkbox" id="x-second" checked /> Include second-order questions (e.g. “nerve supply of the pinned muscle”)</label>
@@ -167,7 +168,7 @@ export function initExam(app, el, back) {
       ${hist.length ? `<div class="card"><h4 style="margin-top:0">Recent exams</h4>
         <div class="exam-hist">${hist.slice(-8).map((e) => `<div class="eh ${e.pct >= PASS ? "pass" : "fail"}" title="${esc(e.name)} — ${new Date(e.t).toLocaleDateString()}"><div style="height:${Math.max(6, e.pct)}%"></div><span>${e.pct}</span></div>`).join("")}</div>
         <p class="muted" style="font-size:12px">Best: <b>${best}%</b> · ${hist.length} exam${hist.length > 1 ? "s" : ""} taken</p></div>` : ""}
-      <button class="btn" id="x-back">◀ Other quiz modes</button>`;
+      <button class="btn" id="x-back">${icon("back")}Other quiz modes</button>`;
     const box = el.querySelector("#x-presets");
     for (const p of PRESETS.filter((x) => (x.body || "male") === app.body)) {
       const b = h(`<button class="opt">${esc(p.name)}<br><span class="muted" style="font-weight:500;font-size:12px">${esc(p.desc)}</span></button>`);
@@ -232,8 +233,8 @@ export function initExam(app, el, back) {
         <div class="exam-clock"><div class="ring-sm" id="x-ring"></div><div><div class="prompt" style="font-size:19px">${q}</div>
         <div class="muted" style="font-size:12px">Rotate &amp; zoom freely · Enter to submit</div></div></div>
         <form id="x-form" autocomplete="off"><input id="x-ans" class="exam-input" placeholder="Type your answer…" autocomplete="off" autocapitalize="off" spellcheck="false" />
-        <div class="row"><button type="button" class="btn ${s.flagged ? "on" : ""}" id="x-flag">🚩 Flag</button><button type="submit" class="btn primary" style="flex:1">Submit ▶</button></div></form>
-      </div><button class="btn" id="x-quit">✕ End exam</button>`;
+        <div class="row"><button type="button" class="btn ${s.flagged ? "on" : ""}" id="x-flag">${icon("flag")}Flag</button><button type="submit" class="btn primary" style="flex:1">Submit${icon("next")}</button></div></form>
+      </div><button class="btn" id="x-quit">${icon("close")}End exam</button>`;
     const input = el.querySelector("#x-ans");
     if (!matchMedia("(pointer: coarse)").matches) input.focus();
     el.querySelector("#x-form").addEventListener("submit", (e) => { e.preventDefault(); next(); });

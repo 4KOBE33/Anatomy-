@@ -1,6 +1,7 @@
 // "What hurts?" mode: free-text or tap-on-body pain lookup -> structures highlighted in 3D,
 // common causes, red flags, and a guided exercise routine with timers.
 import { PAIN_REGIONS, GLOBAL_RED_FLAGS, DISCLAIMER, matchPain } from "./data/pain.js";
+import { icon } from "./icons.js";
 import { pretty, store, saveStore, addXP, $, h, esc, toast } from "./util.js";
 let POSES = {};
 try { ({ POSES } = await import("./data/exercise_poses.js")); } catch { /* demos not available */ }
@@ -94,7 +95,7 @@ export function initPain(app) {
     let html = `${sevNote}<div class="card">
       <h2>${esc(r.name)}</h2>
       ${st.others.length ? `<div class="chips region-chips">Or: ${st.others.map((o, i) => `<button data-o="${i}">${esc(o.name)}</button>`).join("")}</div>` : ""}
-      <button class="btn primary wide" style="margin-top:12px" id="p-start">Start guided routine · ${r.exercises.length} exercises</button>
+      <button class="btn primary wide" style="margin-top:12px" id="p-start">${icon("play")}Start guided routine · ${r.exercises.length} exercises</button>
       <div id="p-ex"></div>
       <details class="fold"><summary>Why it hurts</summary>
         ${(r.causes || []).map((c) => `<p><b>${esc(c.name)}</b> — <span class="muted">${esc(c.note)}</span></p>`).join("")}
@@ -121,7 +122,7 @@ export function initPain(app) {
         <div class="ex-head"><b>${i + 1}. ${esc(ex.name)}</b><span class="type ${esc(ex.type)}">${esc(ex.type)}</span></div>
         <div class="muted" style="font-size:12px">${doseText(ex.dose)} · ${"●".repeat(ex.level || 1)}${"○".repeat(3 - (ex.level || 1))}</div>
         <div class="ex-body hidden"><ol>${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>${ex.cue ? `<div class="cue">💡 ${esc(ex.cue)}</div>` : ""}</div>
-        ${POSES[`${r.id}|${ex.name}`]?.dofs ? `<button class="linkbtn demo-btn" title="Show this exercise on the 3D body">▶ 3D</button>` : ""}
+        ${POSES[`${r.id}|${ex.name}`]?.dofs ? `<button class="linkbtn demo-btn" title="Show this exercise on the 3D body">${icon("play")}3D</button>` : ""}
       </div>`);
       card.querySelector(".demo-btn")?.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -235,7 +236,7 @@ export function initPain(app) {
         modal.innerHTML = `<div class="card routine"><div class="dots">${dots}</div><h2 style="text-align:center;margin:0">Rest</h2>
           <p class="muted" style="text-align:center">Next: <b style="color:var(--text)">${esc(nxt?.name || "")}</b> (preview on the body)</p>${legend}
           <div id="r-ring">${ring(1, remaining, "rest")}</div>
-          <div class="row" style="justify-content:center"><button class="btn" id="r-skip">Skip rest ▶</button><button class="btn" id="r-quit">End</button></div></div>`;
+          <div class="row" style="justify-content:center"><button class="btn" id="r-skip">Skip rest${icon("next")}</button><button class="btn" id="r-quit">End</button></div></div>`;
         tick(s.secs, "rest");
       } else {
         const hold = ex.dose?.holdSec;
@@ -246,7 +247,7 @@ export function initPain(app) {
           ${ex.cue ? `<div class="cue" style="color:var(--accent2)">💡 ${esc(ex.cue)}</div>` : ""}
           <div id="r-ring">${hold ? ring(1, hold, "hold") : ring(1, ex.dose?.reps || "✓", "reps")}</div>
           <div class="row" style="justify-content:center">
-            ${hold ? `<button class="btn primary" id="r-go">▶ Start ${hold}s</button>` : `<button class="btn primary" id="r-done">✓ Set done</button>`}
+            ${hold ? `<button class="btn primary" id="r-go">${icon("play")}Start ${hold}s</button>` : `<button class="btn primary" id="r-done">${icon("check")}Set done</button>`}
             <button class="btn" id="r-skip">Skip</button><button class="btn" id="r-quit">End</button></div>
           <p class="muted" style="font-size:11px;text-align:center;margin-top:10px">Stop if pain becomes sharp or goes above 3/10.</p></div>`;
         modal.querySelector("#r-go")?.addEventListener("click", (e) => { e.target.remove(); tick(hold, "hold"); });

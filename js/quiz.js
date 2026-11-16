@@ -1,6 +1,7 @@
 // Quiz mode: "Find it" (click in 3D), "Name it" (multiple choice on a highlighted structure),
 // "Facts" (origin / insertion / action / nerve questions), plus a weak-spot review.
 import { initExam } from "./exam.js";
+import { icon } from "./icons.js";
 import { pretty, sysLabel, sysColor, REGIONS, store, saveStore, addXP, recordAnswer, $, h, esc, toast, shuffle } from "./util.js";
 
 const MODES = [
@@ -98,14 +99,14 @@ export function initQuiz(app) {
     el.querySelector("#q-opts").addEventListener("toggle", (e) => (st.optsOpen = e.target.open));
     const modes = el.querySelector("#q-modes");
     for (const [k, l] of MODES) {
-      const b = h(`<button class="${s.mode === k ? "on" : ""}">${l}</button>`);
+      const b = h(`<button class="${s.mode === k ? "on" : ""}">${icon(k)}<span>${l}</span></button>`);
       b.onclick = () => { s.mode = k; renderSetup(); };
       modes.appendChild(b);
     }
     const sysEl = el.querySelector("#q-sys");
     const present = new Set(app.parts.map((p) => p.system));
     for (const k of QUIZ_SYSTEMS.filter((x) => present.has(x))) {
-      const b = h(`<button class="${s.systems.has(k) ? "on" : ""}"><span class="swatch" style="display:inline-block;background:${sysColor(k)};margin-right:5px"></span>${esc(sysLabel(k))}</button>`);
+      const b = h(`<button class="${s.systems.has(k) ? "on" : ""}"><span class="sys-ic" style="color:${sysColor(k)}">${icon(k)}</span>${esc(sysLabel(k))}</button>`);
       b.onclick = () => { s.systems.has(k) ? s.systems.size > 1 && s.systems.delete(k) : s.systems.add(k); renderSetup(); };
       sysEl.appendChild(b);
     }
@@ -228,11 +229,11 @@ export function initQuiz(app) {
     if (q.type === "find") {
       body = `<div class="prompt"><small>Find &amp; tap</small>${esc(q.answer)}</div>
         <p class="muted" style="font-size:13px">Either side counts. Deep structure? Use <b>Hide</b> to peel layers away, rotate to look behind.</p>
-        <div class="row"><button class="btn" id="q-hint">💡 Hint (−50%)</button><button class="btn" id="q-skip">Show me</button></div>`;
+        <div class="row"><button class="btn" id="q-hint">${icon("facts")}Hint (−50%)</button><button class="btn" id="q-skip">Show me</button></div>`;
       app.viewer.setView("front");
     } else if (q.type === "name") {
       body = `<div class="prompt"><small>What is the highlighted structure?</small></div>
-        <div class="row" style="margin-top:4px"><button class="btn" id="q-ctx" title="Show or fade the rest of the body">👁 Context</button><button class="btn" id="q-refocus">🎯 Re-center</button></div>
+        <div class="row" style="margin-top:4px"><button class="btn" id="q-ctx" title="Show or fade the rest of the body">${icon("eye")}Context</button><button class="btn" id="q-refocus">${icon("quiz")}Re-center</button></div>
         <div class="opt-grid" id="q-opts"></div>`;
       spotlight(q.unit.ids);
     } else {
@@ -246,7 +247,7 @@ export function initQuiz(app) {
       ${body}
       <div id="q-fb"></div>
       </div>
-      <button class="btn" id="q-quit">✕ End round</button>`;
+      <button class="btn" id="q-quit">${icon("close")}End round</button>`;
     if (q.options) {
       const box = el.querySelector("#q-opts");
       for (const o of q.options) {
@@ -312,7 +313,7 @@ export function initQuiz(app) {
     const extra = kb && q.type !== "facts" ? `<div class="muted" style="font-weight:500;margin-top:4px">${esc(kb.summary || "")}</div>` : "";
     const fb = $("#q-fb");
     fb.innerHTML = `<div class="feedback ${ok ? "ok" : "no"}">${ok ? `✅ Correct! +${pts}` : `❌ ${picked ? "Not quite." : ""} It's <b>${esc(q.type === "facts" ? q.answer : q.answer)}</b>`}${q.type === "facts" && !ok ? "" : ""}${extra}</div>
-      <button class="btn primary wide" style="margin-top:10px" id="q-next">${r.i + 1 < r.qs.length ? "Next ▶" : "See results"}</button>`;
+      <button class="btn primary wide" style="margin-top:10px" id="q-next">${r.i + 1 < r.qs.length ? "Next" + icon("next") : "See results"}</button>`;
     fb.querySelector("#q-next").onclick = next;
     el.querySelector("#q-hint")?.remove();
     el.querySelector("#q-skip")?.remove();
@@ -388,10 +389,10 @@ export function initQuiz(app) {
   function renderCustomSetup() {
     const pool = unitPool();
     el.innerHTML = `<div class="card">
-        <h2>🎯 Lesson quiz</h2>
+        <h2>Lesson quiz</h2>
         <p><b>${esc(st.custom.title)}</b> — ${pool.length} structures</p>
         <p class="muted">A mix of “find it” and “name it”. Each question spotlights the structure.</p>
-        <button class="btn primary wide" id="q-start">Start ▶</button>
+        <button class="btn primary wide" id="q-start">Start</button>
         <button class="btn wide" style="margin-top:8px" id="q-clear">Back to normal quizzes</button>
       </div>`;
     el.querySelector("#q-start").onclick = () => startRound(false);
@@ -440,11 +441,11 @@ export function initQuiz(app) {
     spotlight(c.ids);
     const fields = c.kb.kind === "muscle" ? "origin · insertion · action · nerve" : c.kb.kind === "nerve" ? "roots · course · muscles supplied · injury sign" : "function · key features";
     el.innerHTML = `<div class="card flash">
-        <div class="qhead"><span>🃏 Flashcards</span><span>${st.cards.done}/${st.cards.total}</span></div>
+        <div class="qhead"><span>${icon("cards")}Flashcards</span><span>${st.cards.done}/${st.cards.total}</span></div>
         <div class="q" style="margin-top:10px">What is the highlighted structure?</div>
         <p class="muted">Say the name, then recall its ${fields}. Rotate the body if you need to.</p>
         <button class="btn primary wide" id="c-flip">Show answer</button>
-      </div><button class="btn" id="c-quit">✕ Stop</button>`;
+      </div><button class="btn" id="c-quit">${icon("close")}Stop</button>`;
     el.querySelector("#c-flip").onclick = () => flip(c);
     el.querySelector("#c-quit").onclick = finishCards;
     app.openPanelMobile();
@@ -457,7 +458,7 @@ export function initQuiz(app) {
     const iv = nextIntervals(store.cards?.[c.key]);
     const fmt = (d) => (d === 0 ? "<1m" : d === 1 ? "1d" : d < 30 ? `${d}d` : `${Math.round(d / 30)}mo`);
     el.innerHTML = `<div class="card">
-        <div class="qhead"><span>🃏 Flashcards</span><span>${st.cards.done}/${st.cards.total}</span></div>
+        <div class="qhead"><span>${icon("cards")}Flashcards</span><span>${st.cards.done}/${st.cards.total}</span></div>
         <h2 style="margin-top:8px">${esc(k.title)}</h2>
         ${k.summary ? `<p class="muted">${esc(k.summary)}</p>` : ""}
         ${rows ? `<dl class="kv">${rows}</dl>` : ""}
@@ -470,7 +471,7 @@ export function initQuiz(app) {
           <button class="good" data-r="good">Good<small>${fmt(iv.good)}</small></button>
           <button class="easy" data-r="easy">Easy<small>${fmt(iv.easy)}</small></button>
         </div>
-      </div><button class="btn" id="c-quit">✕ Stop</button>`;
+      </div><button class="btn" id="c-quit">${icon("close")}Stop</button>`;
     el.querySelectorAll(".rate button").forEach((b) => (b.onclick = () => rate(c, b.dataset.r)));
     el.querySelector("#c-quit").onclick = finishCards;
   }

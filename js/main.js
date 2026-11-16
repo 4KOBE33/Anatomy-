@@ -4,6 +4,7 @@ import {
   $, h, esc, toast, achievements, currentStreak, setBodyKB,
 } from "./util.js";
 import { initLearn } from "./learn.js";
+import { icon } from "./icons.js";
 import { initQuiz } from "./quiz.js";
 import { initPain } from "./painui.js";
 
@@ -128,7 +129,7 @@ function buildLayers() {
   for (const s of SYSTEM_ORDER) {
     if (!counts[s]) continue;
     const row = h(`<label class="layer" title="${counts[s]} structures"><input type="checkbox" data-sys="${s}" ${app.viewer.systemsVisible.has(s) ? "checked" : ""}/>
-      <span class="swatch" style="background:${sysColor(s)}"></span>${esc(sysLabel(s))}</label>`);
+      <span class="sys-ic" style="color:${sysColor(s)}">${icon(s)}</span>${esc(sysLabel(s))}</label>`);
     row.querySelector("input").addEventListener("change", (e) => app.viewer.setSystemVisible(s, e.target.checked));
     wrap.appendChild(row);
   }
@@ -159,7 +160,7 @@ function buildTree() {
   }
   for (const s of SYSTEM_ORDER) {
     if (!bySys[s]) continue;
-    const det = h(`<details><summary><span class="swatch" style="background:${sysColor(s)}"></span>${esc(sysLabel(s))}</summary></details>`);
+    const det = h(`<details><summary><span class="sys-ic" style="color:${sysColor(s)}">${icon(s)}</span>${esc(sysLabel(s))}</summary></details>`);
     const names = Object.keys(bySys[s]).sort((a, b) => a.localeCompare(b));
     det.addEventListener("toggle", () => {
       if (!det.open || det.dataset.built) return;
@@ -311,7 +312,7 @@ function renderExplore() {
         <p class="muted">${app.body === "female"
           ? `Female body · ${app.parts.length} structures. Organs, vessels, brain, spine, pelvis and knees — no open female dataset has a full skeleton or muscles yet.`
           : `Male body · ${app.parts.length} structures from MRI-derived data.`} Drag to rotate, pinch to zoom.</p>
-        <div class="row"><button class="btn primary" id="golearn">Start a lesson</button><button class="btn" id="goquiz">Quiz me</button><button class="btn" id="rand">Random</button></div>
+        <div class="row"><button class="btn primary" id="golearn">${icon("learn")}Start a lesson</button><button class="btn" id="goquiz">${icon("quiz")}Quiz me</button><button class="btn" id="rand">${icon("shuffle")}Random</button></div>
       </div>
       <div class="card">
         <div class="mini-stats"><span><b>Lv ${levelFor(store.xp)}</b></span><span><b>${mastered}</b> mastered</span><span>🔥 <b>${currentStreak()}</b> day streak</span></div>
@@ -338,15 +339,15 @@ function renderExplore() {
   const more = kb && (extra.length || kb.features?.length || kb.clinical || kb.mnemonic || kb.facts?.length || group.length > 1);
   const canMove = app.body === "male" && app.motion?.movesFor(p.base).length;
   el.innerHTML = `<div class="card">
-    <div class="eyebrow"><span class="dotc" style="background:${sysColor(p.system)}"></span>${esc(sysLabel(p.system))}${p.side ? ` · ${p.side}` : ""}${kb && kb.title.toLowerCase() !== p.base.toLowerCase() ? ` · part of ${esc(kb.title)}` : ""}</div>
+    <div class="eyebrow"><span class="sys-ic" style="color:${sysColor(p.system)}">${icon(p.system)}</span>${esc(sysLabel(p.system))}${p.side ? ` · ${p.side}` : ""}${kb && kb.title.toLowerCase() !== p.base.toLowerCase() ? ` · part of ${esc(kb.title)}` : ""}</div>
     <h2>${esc(pretty(p.name))}</h2>
     ${kb?.summary ? `<p>${esc(kb.summary)}</p>` : kb ? "" : `<p class="muted">${esc(sysBlurb(p.system))}</p>`}
     ${dl(main)}
     <div class="actions">
-      <button class="btn" id="b-focus" title="Zoom in (F)">Focus</button>
-      <button class="btn" id="b-iso" title="Show only this (I)">Isolate</button>
-      <button class="btn" id="b-hide" title="Hide it to see underneath (H)">Hide</button>
-      ${canMove ? `<button class="btn" id="b-move">See it move</button>` : ""}
+      <button class="btn" id="b-focus" title="Zoom in (F)">${icon("focus")}Focus</button>
+      <button class="btn" id="b-iso" title="Show only this (I)">${icon("isolate")}Isolate</button>
+      <button class="btn" id="b-hide" title="Hide it to see underneath (H)">${icon("hide")}Hide</button>
+      ${canMove ? `<button class="btn" id="b-move">${icon("play")}See it move</button>` : ""}
     </div>
     ${more ? `<details class="fold"><summary>More</summary>
       ${dl(extra)}
@@ -355,9 +356,9 @@ function renderExplore() {
       ${kb.mnemonic ? `<div class="note"><b>Mnemonic:</b> ${esc(kb.mnemonic)}</div>` : ""}
       ${kb.facts?.length ? `<h4>Did you know?</h4>${kb.facts.map((f) => `<p>${esc(f)}</p>`).join("")}` : ""}
       ${group.length > 1 ? `<h4>Parts (${group.length})</h4><div class="parts-list">${group.map((q) => `<button data-id="${q.id}" class="${q.id === id ? "on" : ""}">${esc(pretty(q.name))}</button>`).join("")}</div>` : ""}
-      <div class="row">${sides.length === 2 ? `<button class="btn" id="b-both">Both sides</button>` : ""}<button class="btn" id="b-hurt">Hurts here?</button></div>
+      <div class="row">${sides.length === 2 ? `<button class="btn" id="b-both">Both sides</button>` : ""}<button class="btn" id="b-hurt">${icon("hurt")}Hurts here?</button></div>
       <p class="muted tiny">ID ${p.id}</p>
-    </details>` : `<div class="row"><button class="btn" id="b-hurt">Hurts here?</button></div>`}
+    </details>` : `<div class="row"><button class="btn" id="b-hurt">${icon("hurt")}Hurts here?</button></div>`}
   </div>`;
   el.querySelectorAll(".parts-list button").forEach((b) => (b.onclick = () => { selectPart(b.dataset.id); app.viewer.focusSmart([b.dataset.id]); }));
   el.querySelector("#b-focus").onclick = () => app.viewer.focus([id], { pad: 2.2 });
@@ -458,7 +459,10 @@ app.openPanelMobile = openPanelMobile;
 
 // ---------- modes ----------
 function bindTabs() {
-  document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => switchMode(t.dataset.mode)));
+  document.querySelectorAll(".tab").forEach((t) => {
+    t.insertAdjacentHTML("afterbegin", icon(t.dataset.mode, "tab-ic"));
+    t.onclick = () => switchMode(t.dataset.mode);
+  });
 }
 function switchMode(mode) {
   if (mode === app.mode) return;

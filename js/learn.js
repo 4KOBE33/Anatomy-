@@ -6,8 +6,9 @@ try { ({ LESSONS_NERVES } = await import("./data/lessons_nerves.js")); } catch {
 let LESSONS_FEMALE = [];
 try { ({ LESSONS_FEMALE } = await import("./data/lessons_female.js")); } catch { /* not present */ }
 const ALL_LESSONS = [...LESSONS_MAIN, ...LESSONS_NERVES, ...LESSONS_FEMALE];
-import { pretty, store, saveStore, addXP, $, h, esc, toast } from "./util.js";
+import { pretty, store, saveStore, addXP, $, h, esc, toast, sysColor } from "./util.js";
 import { initMotion } from "./motion.js";
+import { icon } from "./icons.js";
 
 const SHORT = { jaw: "Jaw", "sh-abd": "Shoulder abduction", "sh-flex": "Shoulder flexion", "sh-rot": "Shoulder rotation", elbow: "Elbow",
   pron: "Forearm rotation", wrist: "Wrist", "hip-flex": "Hip flexion", "hip-abd": "Hip abduction", knee: "Knee", ankle: "Ankle", subtalar: "Foot inversion" };
@@ -80,7 +81,7 @@ export function initLearn(app) {
       first = false;
       for (const x of ls) {
         const isDone = store.lessons?.[x.id]?.done;
-        const b = h(`<button class="lesson" data-id="${esc(x.id)}"><span class="em">${x.emoji || "📘"}</span>
+        const b = h(`<button class="lesson" data-id="${esc(x.id)}"><span class="em" style="color:${sysColor((x.systems||[])[0]||"muscular")}">${icon((x.systems||[])[0]||"muscular")}</span>
           <span class="lt"><b>${esc(x.title)}</b><span class="meta">${x.steps.length} steps · ~${x.minutes || 3} min</span></span>
           ${isDone ? `<span class="done">✓</span>` : ""}</button>`);
         b.onclick = () => start(x);
@@ -103,11 +104,11 @@ export function initLearn(app) {
     st.move = m;
     const others = motion.MOVES.filter((x) => x.region === m.region && x !== m);
     el.innerHTML = `<div class="card">
-        <div class="qhead"><span>🎬 Muscle action · ${esc(m.region)}</span><span id="mv-angle" class="angle">0°</span></div>
+        <div class="qhead"><span>${icon("film")}Muscle action · ${esc(m.region)}</span><span id="mv-angle" class="angle">0°</span></div>
         <h2 style="margin-top:6px">${esc(m.name)}</h2>
         <div class="phase" id="mv-phase"></div>
         <div class="row" style="align-items:center">
-          <button class="btn primary" id="mv-play">⏸ Pause</button>
+          <button class="btn primary" id="mv-play">${icon("pause")}Pause</button>
           <div class="seg-pick small" id="mv-speed"><button data-s="0.5">½×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button></div>
         </div>
         <label class="slider-row" style="margin-top:10px">Position<input type="range" id="mv-scrub" min="0" max="1000" value="0" /></label>
@@ -119,15 +120,15 @@ export function initLearn(app) {
         </dl>
         <p style="margin-top:10px">${esc(m.text)}</p>
         ${others.length ? `<h4>More ${esc(m.region.toLowerCase())} actions</h4><div class="parts-list">${others.map((o) => `<button data-mv="${o.id}">${esc(o.name)}</button>`).join("")}</div>` : ""}
-      </div><button class="btn" id="mv-exit">✕ All lessons</button>`;
+      </div><button class="btn" id="mv-exit">${icon("close")}All lessons</button>`;
     const phaseEl = el.querySelector("#mv-phase"), angleEl = el.querySelector("#mv-angle"), scrub = el.querySelector("#mv-scrub"), play = el.querySelector("#mv-play");
     motion.on(
       (group) => { phaseEl.innerHTML = `<span class="ph-dot"></span><b>${esc(group.label)}</b> — prime movers: ${esc(musclesLine(group))}`; },
       (u) => { angleEl.textContent = `${motion.angle()}°`; if (motion.playing()) scrub.value = Math.round(u * 1000); }
     );
     motion.start(m); // restart so the first phase label goes through the callback
-    play.onclick = () => { const p = !motion.playing(); motion.setPlaying(p); play.textContent = p ? "⏸ Pause" : "▶ Play"; };
-    scrub.oninput = () => { motion.scrub(scrub.value / 1000); play.textContent = "▶ Play"; };
+    play.onclick = () => { const p = !motion.playing(); motion.setPlaying(p); play.innerHTML = p ? icon("pause") + "Pause" : icon("play") + "Play"; };
+    scrub.oninput = () => { motion.scrub(scrub.value / 1000); play.innerHTML = icon("play") + "Play"; };
     el.querySelectorAll("#mv-speed button").forEach((b) => (b.onclick = () => {
       motion.setSpeed(+b.dataset.s);
       el.querySelectorAll("#mv-speed button").forEach((x) => x.classList.toggle("on", x === b));
@@ -158,19 +159,19 @@ export function initLearn(app) {
     labelStep(ids);
     const kbs = [...new Map(ids.map((id) => app.byId.get(id).kb).filter(Boolean).map((k) => [k.key, k])).values()];
     el.innerHTML = `<div class="card">
-        <div class="qhead"><span>${L.emoji || "📘"} ${esc(L.title)}</span><span>Step ${i + 1}/${L.steps.length}</span></div>
+        <div class="qhead"><span>${icon((L.systems||[])[0]||"learn")}${esc(L.title)}</span><span>Step ${i + 1}/${L.steps.length}</span></div>
         <div class="stepbar">${L.steps.map((_, j) => `<span class="${j <= i ? "on" : ""}"></span>`).join("")}</div>
         ${i === 0 && L.intro ? `<p class="muted">${esc(L.intro)}</p>` : ""}
         <h2>${esc(step.title)}</h2>
         <p style="font-size:15px">${esc(step.text)}</p>
-        ${kbs.length ? `<details style="margin-top:8px"><summary class="muted" style="cursor:pointer">📖 Study notes (${kbs.length})</summary>${kbs.slice(0, 6).map(noteHtml).join("")}</details>` : ""}
+        ${kbs.length ? `<details class="fold notes-fold"><summary>Study notes (${kbs.length})</summary>${kbs.slice(0, 6).map(noteHtml).join("")}</details>` : ""}
         <div class="row" style="justify-content:space-between">
-          <button class="btn" id="l-prev" ${i === 0 ? "disabled" : ""}>◀ Back</button>
-          <button class="btn" id="l-ctx" title="Show or fade the rest of the body">👁 Context</button>
-          <button class="btn primary" id="l-next">${i + 1 < L.steps.length ? "Next ▶" : "Finish ✓"}</button>
+          <button class="btn" id="l-prev" ${i === 0 ? "disabled" : ""}>${icon("back")}Back</button>
+          <button class="btn" id="l-ctx" title="Show or fade the rest of the body">${icon("eye")}Context</button>
+          <button class="btn primary" id="l-next">${i + 1 < L.steps.length ? "Next" + icon("next") : "Finish" + icon("check")}</button>
         </div>
       </div>
-      <button class="btn" id="l-exit">✕ All lessons</button>`;
+      <button class="btn" id="l-exit">${icon("close")}All lessons</button>`;
     el.querySelector("#l-prev").onclick = () => { st.step--; showStep(); };
     el.querySelector("#l-next").onclick = () => { if (st.step + 1 < L.steps.length) { st.step++; showStep(); } else finish(); };
     el.querySelector("#l-exit").onclick = () => { st.lesson = null; renderList(); app.viewer.setView("front"); };
@@ -211,12 +212,12 @@ export function initLearn(app) {
     const idx = LESSONS.indexOf(L);
     const nextL = LESSONS[idx + 1];
     el.innerHTML = `<div class="card">
-        <h2>${L.emoji || "📘"} ${esc(L.title)} — done!</h2>
+        <h2>${esc(L.title)} — done!</h2>
         <p class="muted">${first ? "+50 XP" : "+10 XP (review)"}</p>
         <h4>Key takeaways</h4>
         ${(L.takeaways || []).map((t) => `<p>✅ ${esc(t)}</p>`).join("")}
-        <button class="btn primary wide" id="l-quiz" style="margin-top:10px">🎯 Quiz me on this lesson</button>
-        <div class="row">${nextL ? `<button class="btn" id="l-nextl">Next: ${nextL.emoji || ""} ${esc(nextL.title)} ▶</button>` : ""}<button class="btn" id="l-all">All lessons</button></div>
+        <button class="btn primary wide" id="l-quiz" style="margin-top:10px">${icon("quiz")}Quiz me on this lesson</button>
+        <div class="row">${nextL ? `<button class="btn" id="l-nextl">Next: ${esc(nextL.title)}${icon("next")}</button>` : ""}<button class="btn" id="l-all">All lessons</button></div>
       </div>`;
     el.querySelector("#l-quiz").onclick = () => {
       const units = lessonUnits(L);
