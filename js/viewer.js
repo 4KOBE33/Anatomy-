@@ -31,7 +31,7 @@ const SYSTEM_STYLE = {
   reproductive: { color: 0xd395a3, roughness: 0.45, kind: "ORGAN", clearcoat: 0.4 },
   lymphatic: { color: 0x6e2a4c, roughness: 0.4, kind: "ORGAN", clearcoat: 0.5 },
   skin: { color: 0xd6a081, roughness: 0.55, kind: "SKIN", sheen: 0.6 },
-  nerves: { color: 0xf0cd55, roughness: 0.35, kind: "ORGAN", sheen: 0.5, clearcoat: 0.4 },
+  nerves: { color: 0xf0cf5c, roughness: 0.4, kind: "ORGAN", sheen: 0.7, clearcoat: 0.35 },
 };
 const NAME_COLORS = [
   [/vein|vena cava|coronary sinus|cardiac veins|veins of ventricle/, 0x2c58b0],
@@ -215,6 +215,38 @@ function muscleFrame(geo) {
 }
 
 // gltfpack stores quantized (integer) attributes; convert to float before baking transforms into them.
+const NERVE_INFLATE = 0.0011;
+// Votes over the extreme vertices along ±x/±y/±z: on a closed or tubular surface their normals face outward.
+function insideOut(g) {
+  const pos = g.attributes.position, nor = g.attributes.normal;
+  let out = 0, inn = 0;
+  for (let ax = 0; ax < 3; ax++) for (const sg of [1, -1]) {
+    let best = 0, bv = -Infinity;
+    for (let i = 0; i < pos.count; i++) { const v = pos.getComponent(i, ax) * sg; if (v > bv) { bv = v; best = i; } }
+    nor.getComponent(best, ax) * sg > 0 ? out++ : inn++;
+  }
+  return inn > out;
+}
+function turnOut(g) {
+  const nor = g.attributes.normal;
+  for (let i = 0; i < nor.array.length; i++) nor.array[i] = -nor.array[i];
+  nor.needsUpdate = true;
+  flipWinding(g);
+}
+function flipWinding(g) {
+  if (!g.index) g.setIndex([...Array(g.attributes.position.count).keys()]);
+  const ix = g.index.array;
+  for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; }
+  g.index.needsUpdate = true;
+}
+function inflate(g, d) {
+  const pos = g.attributes.position, nor = g.attributes.normal;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setXYZ(i, pos.getX(i) + nor.getX(i) * d, pos.getY(i) + nor.getY(i) * d, pos.getZ(i) + nor.getZ(i) * d);
+  }
+  pos.needsUpdate = true;
+}
+
 function toFloat(geo, name) {
   const a = geo.getAttribute(name);
   if (!a || (a.array instanceof Float32Array && !a.isInterleavedBufferAttribute)) return;
@@ -504,6 +536,13 @@ export class Viewer {
           toFloat(m.geometry, "normal");
           m.geometry.applyMatrix4(m.matrixWorld);
           if (!m.geometry.attributes.normal) m.geometry.computeVertexNormals();
+          if (info.system === "nerves") {
+            // Z-Anatomy's left-side nerves were mirrored upstream and are inside-out (normals and winding
+            // both point inward). Turn them right way out, then plump the thin tubes up ~1 mm so they
+            // read as nerves rather than wires at body scale.
+            if (insideOut(m.geometry)) turnOut(m.geometry);
+            inflate(m.geometry, NERVE_INFLATE);
+          }
           m.geometry.computeBoundingSphere();
           m.geometry.computeBoundingBox();
           let axis = info.system === "muscular" ? muscleFrame(m.geometry) : new THREE.Vector3(0, 1, 0);

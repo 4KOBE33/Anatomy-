@@ -154,11 +154,6 @@ details.fold[open] > summary::after { transform: rotate(45deg); }
 details.fold > summary:hover { color: var(--text); }
 details.fold[open] > summary { margin-bottom: 12px; color: var(--muted); }
 .credits p { font-size: 11.5px; color: var(--muted); margin: 0; }
-.tree details summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
-.tree details summary::-webkit-details-marker { display: none; }
-.tree summary:hover { background: var(--surface-2); }
-.tree .leaf { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 5px 8px 5px 24px; border-radius: 7px; color: var(--muted); font-size: 12.5px; }
-.tree .leaf:hover { background: var(--surface-2); color: var(--text); }
 
 /* ---------- panel content ---------- */
 .card { padding: 0 0 18px; margin-bottom: 18px; border-bottom: 1px solid var(--edge); }
@@ -403,7 +398,6 @@ details.fold.lesson-group > summary::after { margin-left: 10px; }
 .layer .sys-ic .ic { width: 13px; height: 13px; }
 .layer:not(:has(input:checked)) .sys-ic { opacity: .55; }
 .eyebrow .sys-ic .ic { width: 13px; height: 13px; }
-.tree summary .sys-ic .ic { width: 15px; height: 15px; }
 .seg-pick button { display: inline-flex; align-items: center; gap: 6px; }
 .btn .ic { width: 15px; height: 15px; stroke-width: 2; margin-left: -2px; }
 .tab { display: inline-flex; align-items: center; gap: 7px; }

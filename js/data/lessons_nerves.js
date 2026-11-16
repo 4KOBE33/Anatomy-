@@ -132,7 +132,7 @@ export const LESSONS_NERVES = [
     steps: [
       {
         title: "Lumbar plexus: born inside psoas",
-        structures: ["anterior rami of lumbar nerves", "iliohypogastric nerve", "ilio-inguinal nerve", "genitofemoral nerve", "lateral femoral cutaneous nerve"],
+        structures: ["iliohypogastric nerve", "ilio-inguinal nerve", "genitofemoral nerve", "lateral femoral cutaneous nerve"],
         context: ["psoas major", "lumbar vertebra", "hip bone", "inguinal ligament"],
         text: "The anterior rami of L1–L4 join inside psoas major, and their branches come out around the muscle. The iliohypogastric and ilio-inguinal nerves (L1) leave its lateral border and run round the abdominal wall. The ilio-inguinal travels through the inguinal canal and is the nerve most often caught during hernia repair. The genitofemoral nerve (L1–L2) pierces the front of psoas. Its genital branch supplies cremaster and its femoral branch supplies skin just below the inguinal ligament. The lateral femoral cutaneous nerve (L2–L3) passes under the inguinal ligament close to the ASIS, and it is compressed there by tight belts, obesity or pregnancy. That compression is meralgia paraesthetica: burning and numbness over the anterolateral thigh with no weakness."
       },
@@ -200,7 +200,7 @@ export const LESSONS_NERVES = [
       },
       {
         title: "Trigeminal nerve: three sensory divisions",
-        structures: ["trigeminal nerve", "ophthalmic nerve", "maxillary nerve", "mandibular nerve"],
+        structures: ["trigeminal nerve", "ophthalmic nerve", "maxillary nerve", "inferior alveolar nerve", "lingual nerve", "buccal nerve", "mental nerve"],
         context: ["pons", "sphenoid bone", "temporal bone", "maxilla", "mandible"],
         text: "CN V leaves the side of the pons as a large sensory root and a small motor root, which reach the trigeminal ganglion in Meckel's cave. The three divisions leave through different openings: V1 through the superior orbital fissure, V2 through the foramen rotundum and V3 through the foramen ovale (Standing Room Only). V1 and V2 are purely sensory. V3 also carries the motor root to the muscles of mastication. Trigeminal neuralgia causes stabbing pain in the V2/V3 area. The corneal reflex tests V1 (sensory in) and VII (motor out). If the motor root is damaged, the jaw deviates towards the weak side when the mouth opens."
       },

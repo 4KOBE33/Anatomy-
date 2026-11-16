@@ -71,7 +71,7 @@ async function boot() {
   handleHash();
 }
 
-// Load (or switch to) a body: manifest, study notes, layers, browse tree, search, 3D models.
+// Load (or switch to) a body: manifest, study notes, layers, search, 3D models.
 async function loadBody(body, first = false) {
   const cfg = BODIES[body];
   if (!first) {
@@ -102,7 +102,6 @@ async function loadBody(body, first = false) {
   v.skinOpacity = cfg.skin;
   $("#skin-opacity").value = cfg.skin;
   buildLayers();
-  buildTree();
   buildSearchIndex();
   const systems = [...new Set(manifest.map((p) => p.system))];
   await v.load(manifest, systems, (f) => {
@@ -146,34 +145,6 @@ app.ensureVisible = (ids) => {
     if (p && !app.viewer.systemsVisible.has(p.system)) setLayer(p.system, true);
   }
 };
-
-// ---------- browse tree ----------
-function buildTree() {
-  const tree = $("#tree");
-  tree.innerHTML = "";
-  const bySys = {};
-  for (const [base, ids] of app.units) {
-    const s = app.byId.get(ids[0]).system;
-    const kb = app.byId.get(ids[0]).kb;
-    const group = kb?.title || pretty(base);
-    ((bySys[s] ||= {})[group] ||= []).push(...ids);
-  }
-  for (const s of SYSTEM_ORDER) {
-    if (!bySys[s]) continue;
-    const det = h(`<details><summary><span class="sys-ic" style="color:${sysColor(s)}">${icon(s)}</span>${esc(sysLabel(s))}</summary></details>`);
-    const names = Object.keys(bySys[s]).sort((a, b) => a.localeCompare(b));
-    det.addEventListener("toggle", () => {
-      if (!det.open || det.dataset.built) return;
-      det.dataset.built = 1;
-      for (const g of names) {
-        const b = h(`<button class="leaf">${esc(g)}</button>`);
-        b.onclick = () => { selectGroup(bySys[s][g]); closeDrawerMobile(); };
-        det.appendChild(b);
-      }
-    });
-    tree.appendChild(det);
-  }
-}
 
 // ---------- search ----------
 let index = [];

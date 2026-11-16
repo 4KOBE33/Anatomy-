@@ -45,6 +45,8 @@ def main(src, models):
         if len(f) > target * 1.15:
             v, f = fast_simplification.simplify(v, f, target_reduction=1 - target / len(f))
         mm = trimesh.Trimesh(np.asarray(v), np.asarray(f), process=True)
+        if len(mm.faces) <= 12 or mm.extents.min() < 1e-4:
+            continue  # Z-Anatomy group placeholders: flat strips that render as stray lines
         fid = f"ZN{i:04d}"
         scene.add_geometry(mm, node_name=fid, geom_name=fid)
         tris += len(mm.faces)
