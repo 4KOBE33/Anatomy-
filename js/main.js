@@ -58,6 +58,7 @@ async function boot() {
     tip.style.top = y - r.top + 14 + "px";
   };
   viewer.onFrame = updateLabels;
+  viewer.cubeEl = $("#cube");
 
   app.modeHandlers.explore = { onPick: (id) => selectPart(id), enter: () => renderExplore() };
   initQuiz(app);
@@ -299,6 +300,7 @@ const FIELD_LABELS = [
 function renderExplore() {
   const el = $("#panel-explore");
   const id = app.selectedId;
+  app.viewer?.setIdleSpin(!id && app.mode === "explore");
   if (!id) {
     const mastered = Object.values(store.mastery).filter((m) => m.c >= 3 && m.c > m.w).length;
     const badges = achievements();
@@ -466,6 +468,7 @@ function switchMode(mode) {
   document.querySelectorAll(".mode-panel").forEach((p) => p.classList.toggle("hidden", p.id !== `panel-${mode}`));
   app.hoverEnabled = true;
   app.viewer.pickFilter = null;
+  app.viewer.setIdleSpin(false);
   app.setLabels([]);
   app.modeHandlers[mode]?.enter?.();
   openPanelMobile();

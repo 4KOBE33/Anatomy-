@@ -20,7 +20,7 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 // kind: which procedural micro-surface the shader adds (muscle fibres, bone, soft organ, skin).
 const SYSTEM_STYLE = {
   muscular: { color: 0x9b2c27, roughness: 0.5, jitter: 0.08, kind: "MUSCLE", sheen: 0.55, clearcoat: 0.18 },
-  connective: { color: 0xe4dccb, roughness: 0.3, kind: "ORGAN", sheen: 0.3, clearcoat: 0.3 },
+  connective: { color: 0xcfc4ae, roughness: 0.38, kind: "ORGAN", sheen: 0.3, clearcoat: 0.25 },
   skeletal: { color: 0xe6d8b8, roughness: 0.58, kind: "BONE", clearcoat: 0.05 },
   nervous: { color: 0xe2ada0, roughness: 0.5, kind: "ORGAN", sheen: 0.4, clearcoat: 0.35 },
   cardio: { color: 0xb01f29, roughness: 0.32, kind: "ORGAN", clearcoat: 0.45 },
@@ -241,8 +241,41 @@ const FIBER_DIR = [
 ];
 
 const tmpV = new THREE.Vector3();
+const tmpV2 = new THREE.Vector2();
+const tmpM = new THREE.Matrix4();
+const FLIP_Y = new THREE.Matrix4().makeScale(1, -1, 1);
 const CLIP_AXES = { transverse: new THREE.Vector3(0, -1, 0), sagittal: new THREE.Vector3(-1, 0, 0), coronal: new THREE.Vector3(0, 0, -1) };
 const CLIP_RANGE = { transverse: [0, 1.75], sagittal: [-0.35, 0.35], coronal: [-0.2, 0.2] };
+
+// Inverted-hull outline: back faces pushed out along the normal by a fixed number of screen pixels.
+function makeOutlineMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Color(0xffc93c) }, uPx: { value: 2.5 }, uRes: { value: new THREE.Vector2(1, 1) } },
+    vertexShader: /* glsl */ `
+      #include <common>
+      #include <clipping_planes_pars_vertex>
+      uniform float uPx; uniform vec2 uRes;
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        vec4 clip = projectionMatrix * mvPosition;
+        vec3 n = normalize(normalMatrix * normal);
+        vec2 dir = normalize((projectionMatrix * vec4(n, 0.0)).xy + 1e-6);
+        clip.xy += dir * uPx * 2.0 / uRes * clip.w;
+        gl_Position = clip;
+        #include <clipping_planes_vertex>
+      }`,
+    fragmentShader: /* glsl */ `
+      #include <clipping_planes_pars_fragment>
+      uniform vec3 uColor;
+      void main() {
+        #include <clipping_planes_fragment>
+        gl_FragColor = vec4(uColor, 1.0);
+        #include <colorspace_fragment>
+      }`,
+    side: THREE.BackSide,
+    clipping: true,
+  });
+}
 
 export class Viewer {
   constructor(container) {
@@ -270,6 +303,9 @@ export class Viewer {
     r.toneMappingExposure = 1.08;
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.localClippingEnabled = false;
+    r.shadowMap.enabled = true;
+    r.shadowMap.type = THREE.VSMShadowMap;
+    r.shadowMap.autoUpdate = false; // re-rendered only when something moves or appears/disappears
     container.appendChild(r.domElement);
 
     this.scene = new THREE.Scene();
@@ -288,6 +324,24 @@ export class Viewer {
     rim2.position.set(2.4, 0.8, -2.2);
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0x40302a, 0.45);
     this.scene.add(key, fillL, rim, rim2, hemi);
+    // shadow-only light from above: casts a soft contact shadow onto the floor, adds no light itself
+    const sun = new THREE.DirectionalLight(0xffffff, 0.0001);
+    sun.position.set(0.35, 4, 0.9);
+    sun.castShadow = true;
+    Object.assign(sun.shadow.camera, { left: -1.1, right: 1.1, top: 1.1, bottom: -1.1, near: 1, far: 7 });
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.radius = 14;
+    sun.shadow.blurSamples = 20;
+    this.scene.add(sun);
+    const shadowFloor = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.ShadowMaterial({ opacity: 0.42 }));
+    shadowFloor.rotation.x = -Math.PI / 2;
+    shadowFloor.position.y = -0.001;
+    shadowFloor.receiveShadow = true;
+    shadowFloor.raycast = () => {};
+    this.scene.add(shadowFloor);
+    this.shadowFloor = shadowFloor;
+    this.outlineMat = makeOutlineMaterial();
+    this.hulls = new Map();
     // soft glow on the floor under the body
     const cv = document.createElement("canvas");
     cv.width = cv.height = 256;
@@ -312,7 +366,8 @@ export class Viewer {
     c.maxDistance = 10;
     c.zoomToCursor = true;
     c.rotateSpeed = 0.8;
-    c.addEventListener("start", () => { this._tween = null; this.autoFit = false; });
+    c.addEventListener("start", () => { this._tween = null; this.autoFit = false; this.touched = true; c.autoRotate = false; });
+    c.autoRotateSpeed = 0.7;
     c.addEventListener("change", () => this.invalidate());
 
     this.raycaster = new THREE.Raycaster();
@@ -405,7 +460,7 @@ export class Viewer {
     this.parts.clear();
     this.hidden.clear();
     this.isolated = null; this.spotSystems = null; this._spotTargets = null; this._lastSpot = null;
-    this.selected = new Set(); this.related = new Set(); this.marks.clear();
+    this.selected = new Set(); this.related = new Set(); this.marks.clear(); this.hulls.clear();
     this.hoverId = null;
     this.invalidate();
   }
@@ -462,6 +517,7 @@ export class Viewer {
           mesh.userData.id = id;
           mesh.renderOrder = info.system === "skin" ? 2 : 0;
           this.scene.add(mesh);
+          mesh.castShadow = info.system !== "skin";
           this.parts.set(id, { mesh, info });
         }
         progress.set(sys, 1);
@@ -509,6 +565,8 @@ export class Viewer {
     const cut = new THREE.Color(c).multiplyScalar(info.system === "skeletal" ? 0.85 : 0.6);
     mat.userData.u = { uAxis: { value: axis }, uGhost: { value: 0 }, uCutColor: { value: cut } };
     mat.userData.isSkin = isSkin;
+    // where bone or tendon surfaces coincide with muscle, let the muscle win (no speckled white seams)
+    if (info.system === "skeletal" || info.system === "connective") Object.assign(mat, { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 });
     installShader(mat, isHair ? "ORGAN" : st.kind, mat.userData.u);
     return mat;
   }
@@ -576,6 +634,8 @@ export class Viewer {
   }
 
   _applyVisibility() {
+    this._shadowDirty = true;
+    if (this.shadowFloor) this.shadowFloor.visible = !this.isolated && !this.clip;
     for (const [id, p] of this.parts) {
       const sys = p.info.system;
       let vis = this.systemsVisible.has(sys) && !this.hidden.has(id);
@@ -616,6 +676,7 @@ export class Viewer {
       SHARED.uCut.value = 1;
     }
     this.raycaster.firstHitOnly = !this.clip;
+    if (this.shadowFloor) this.shadowFloor.visible = !this.isolated && !this.clip;
     this.invalidate();
   }
 
@@ -623,6 +684,24 @@ export class Viewer {
   select(ids, related = []) {
     this.selected = new Set(ids);
     this.related = new Set(related.filter((r) => !this.selected.has(r)));
+    // outline: one hull per selected part, attached as a child so it follows animation and visibility
+    for (const [id, hull] of this.hulls) if (!this.selected.has(id)) { hull.parent?.remove(hull); this.hulls.delete(id); }
+    for (const id of this.selected) {
+      if (this.hulls.has(id)) continue;
+      const p = this.parts.get(id);
+      if (!p) continue;
+      const hull = new THREE.Mesh(p.mesh.geometry, this.outlineMat);
+      hull.raycast = () => {};
+      hull.renderOrder = 9;
+      p.mesh.add(hull);
+      this.hulls.set(id, hull);
+    }
+    if (this.selected.size) { this.controls.autoRotate = false; }
+    this.invalidate();
+  }
+  // Slow turntable while nothing is selected, until the user first touches the view.
+  setIdleSpin(on) {
+    this.controls.autoRotate = !!on && !this.touched && !this.selected.size;
     this.invalidate();
   }
   mark(ids, color) { for (const id of ids) this.marks.set(id, color); this.invalidate(); }
@@ -636,7 +715,7 @@ export class Viewer {
       let col = 0x000000, k = 0;
       if (this.marks.has(id)) { col = this.marks.get(id); k = 0.3 + 0.3 * pulse; }
       if (this.related.has(id)) { col = 0x3fb6ff; k = 0.16; }
-      if (this.selected.has(id)) { col = 0xffc93c; k = 0.42; }
+      if (this.selected.has(id)) { col = 0xffb238; k = 0.12; } // light tint — the outline does the work
       if (this.hoverId === id && !this.selected.has(id)) { col = 0x7fd8ff; k = 0.22; }
       if (k === 0 && m.emissiveIntensity === 0) continue;
       m.emissive.setHex(col);
@@ -755,7 +834,7 @@ export class Viewer {
     const D = this.fitDistance();
     const e = h * 0.55;
     const pos = {
-      front: [0, e, D], back: [0, e, -D], left: [D, e, 0], right: [-D, e, 0], top: [0, D + h * 0.5, 0.01],
+      front: [0, e, D], back: [0, e, -D], left: [D, e, 0], right: [-D, e, 0], top: [0, D + h * 0.5, 0.01], bottom: [0, -D + h * 0.5, 0.01],
     }[name] || [0, e, D];
     this._animateTo(t, new THREE.Vector3(...pos));
   }
@@ -907,6 +986,13 @@ export class Viewer {
     return { x: (tmpV.x * 0.5 + 0.5) * rect.width, y: (-tmpV.y * 0.5 + 0.5) * rect.height };
   }
 
+  // Orientation cube (DOM): rotate it with the camera. CSS has y down, so conjugate by a y-flip.
+  _updateCube() {
+    if (!this.cubeEl) return;
+    tmpM.extractRotation(this.camera.matrixWorldInverse).premultiply(FLIP_Y).multiply(FLIP_Y);
+    this.cubeEl.style.transform = `translateZ(-34px) matrix3d(${tmpM.elements.map((x) => x.toFixed(5)).join(",")})`;
+  }
+
   _frame() {
     const dt = this.clock.getDelta();
     this._pulse += dt;
@@ -920,14 +1006,19 @@ export class Viewer {
       this._dirty = true;
     }
     this._hoverTick?.();
-    if (this.onTick) { this.onTick(dt); this._dirty = true; } // per-frame animation hook (muscle actions)
+    if (this.onTick) { this.onTick(dt); this._dirty = true; this._shadowDirty = true; } // per-frame animation hook (muscle actions)
     if (this.controls.update()) this._dirty = true;
     if (this.marks.size) this._dirty = true; // pulsing highlight
     if (!this._dirty) return;
     this._dirty = false;
+    if (this._shadowDirty) { this.renderer.shadowMap.needsUpdate = true; this._shadowDirty = false; }
+    const size = this.renderer.getDrawingBufferSize(tmpV2);
+    this.outlineMat.uniforms.uRes.value.copy(size);
+    this.outlineMat.uniforms.uPx.value = 2.8 * this.renderer.getPixelRatio();
     this._updateEmissive();
     if (this._aoActive()) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
+    this._updateCube();
     this.onFrame?.();
   }
 }

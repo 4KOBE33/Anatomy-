@@ -97,6 +97,16 @@
         <button id="btn-isolate" title="Show only the selected structure (I)" aria-label="Isolate selected"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg></button>
         <button id="btn-showall" title="Show everything again (A)" aria-label="Show everything"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
+      <div class="orient" id="orient" title="Tap a face to view from that side">
+        <div class="cube" id="cube">
+          <button class="face f-front" data-view="front">Ant</button>
+          <button class="face f-back" data-view="back">Post</button>
+          <button class="face f-px" data-view="left">L</button>
+          <button class="face f-nx" data-view="right">R</button>
+          <button class="face f-top" data-view="top">Sup</button>
+          <button class="face f-bot" data-view="bottom">Inf</button>
+        </div>
+      </div>
       <div class="hint" id="hint">Drag to rotate · pinch or scroll to zoom · tap a structure</div>
     </section>
 
