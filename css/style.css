@@ -427,3 +427,54 @@ summary .ic { display: inline-block; width: 14px; height: 14px; stroke-width: 2;
 .linkbtn .ic { display: inline-block; }
 .notes-fold { margin-top: 6px; }
 .lesson .em .ic { width: 17px; height: 17px; stroke-width: 1.9; }
+
+/* ---------- results ---------- */
+.result-head { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
+.result-head h2 { margin: 0 0 2px; font-size: 22px; }
+.result-head p { margin: 0; }
+.score-ring { position: relative; width: 104px; height: 104px; flex: none; }
+.score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.score-ring circle { fill: none; stroke-width: 9; stroke-linecap: round; }
+.score-ring .track { stroke: var(--surface-2); }
+.score-ring .fill { stroke: var(--accent); stroke-dasharray: var(--c); stroke-dashoffset: var(--c); animation: ring-fill 1.1s cubic-bezier(.2,.8,.2,1) .15s forwards; }
+.score-ring.good .fill { stroke: var(--good); }
+.score-ring.low .fill { stroke: #ff7a59; }
+@keyframes ring-fill { to { stroke-dashoffset: var(--off); } }
+.sr-text { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.sr-text b { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.sr-text span { font-size: 10.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.done-badge { width: 64px; height: 64px; flex: none; border-radius: 50%; display: grid; place-items: center; margin: 0 auto;
+  background: radial-gradient(circle at 30% 30%, #6ef0a0, #22b860); box-shadow: 0 10px 30px -8px rgba(74, 222, 128, .6);
+  animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; }
+.result-head .done-badge { margin: 0; }
+.done-badge svg { width: 30px; height: 30px; fill: none; stroke: #062b15; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 30; stroke-dashoffset: 30; animation: draw .45s ease-out .3s forwards; }
+.routine .done-badge { margin-bottom: 10px; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.takeaways { list-style: none; padding: 0; margin: 6px 0 4px; display: grid; gap: 8px; }
+.takeaways li { display: flex; gap: 9px; align-items: flex-start; font-size: 13.5px; line-height: 1.45; }
+.takeaways .ic { width: 15px; height: 15px; flex: none; margin-top: 2px; color: var(--good); stroke-width: 2.4; }
+.confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 200; }
+
+/* ---------- first-visit tour ---------- */
+.tour-ring { position: fixed; z-index: 150; border-radius: 18px; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 9999px rgba(4, 7, 12, 0.55);
+  transition: left .35s cubic-bezier(.2,.8,.2,1), top .35s cubic-bezier(.2,.8,.2,1), width .35s cubic-bezier(.2,.8,.2,1), height .35s cubic-bezier(.2,.8,.2,1); }
+.tour-tip { position: fixed; z-index: 151; padding: 16px 16px 12px; border-radius: var(--r-lg, 18px);
+  background: rgba(22, 27, 36, 0.96); border: 1px solid var(--edge-2); box-shadow: 0 24px 60px -20px rgba(0,0,0,.7);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: tip-in .3s ease-out both;
+  transition: left .35s cubic-bezier(.2,.8,.2,1), top .35s cubic-bezier(.2,.8,.2,1); }
+@keyframes tip-in { from { opacity: 0; transform: translateY(6px); } }
+.tour-tip .tt-step { font-family: var(--mono); font-size: 10.5px; color: var(--accent); letter-spacing: .06em; text-transform: uppercase; }
+.tour-tip h3 { margin: 4px 0 4px; font-size: 16px; letter-spacing: -0.01em; text-transform: none; color: var(--text); }
+.tour-tip p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+.tour-tip .tt-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.tour-tip .linkbtn { color: var(--faint); }
+.credits .linkbtn { margin-top: 8px; }
+.feedback .ic { display: inline-block; width: 15px; height: 15px; stroke-width: 2.6; vertical-align: -3px; margin-right: 6px; }
+.feedback.ok .ic { color: var(--good); }
+.feedback.no .ic { color: var(--bad); }
+.cue .ic { display: inline-block; width: 14px; height: 14px; stroke-width: 2; vertical-align: -2px; margin-right: 5px; }
+.empty .big .ic { width: 30px; height: 30px; margin: 0 auto; opacity: .5; }
+.card > .done-badge:first-child { margin-bottom: 12px; }

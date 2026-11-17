@@ -1,6 +1,7 @@
 // Quiz mode: "Find it" (click in 3D), "Name it" (multiple choice on a highlighted structure),
 // "Facts" (origin / insertion / action / nerve questions), plus a weak-spot review.
 import { initExam } from "./exam.js";
+import { confetti, scoreRing, resultHead, doneBadge } from "./fx.js";
 import { icon } from "./icons.js";
 import { pretty, sysLabel, sysColor, REGIONS, store, saveStore, addXP, recordAnswer, $, h, esc, toast, shuffle } from "./util.js";
 
@@ -312,7 +313,7 @@ export function initQuiz(app) {
     const kb = q.unit.kb;
     const extra = kb && q.type !== "facts" ? `<div class="muted" style="font-weight:500;margin-top:4px">${esc(kb.summary || "")}</div>` : "";
     const fb = $("#q-fb");
-    fb.innerHTML = `<div class="feedback ${ok ? "ok" : "no"}">${ok ? `✅ Correct! +${pts}` : `❌ ${picked ? "Not quite." : ""} It's <b>${esc(q.type === "facts" ? q.answer : q.answer)}</b>`}${q.type === "facts" && !ok ? "" : ""}${extra}</div>
+    fb.innerHTML = `<div class="feedback ${ok ? "ok" : "no"}">${ok ? `${icon("check")}Correct! +${pts}` : `${icon("close")}${picked ? "Not quite." : ""} It's <b>${esc(q.type === "facts" ? q.answer : q.answer)}</b>`}${q.type === "facts" && !ok ? "" : ""}${extra}</div>
       <button class="btn primary wide" style="margin-top:10px" id="q-next">${r.i + 1 < r.qs.length ? "Next" + icon("next") : "See results"}</button>`;
     fb.querySelector("#q-next").onclick = next;
     el.querySelector("#q-hint")?.remove();
@@ -350,10 +351,10 @@ export function initQuiz(app) {
       saveStore();
       addXP(xp);
     }
+    const title = acc >= 90 ? "Outstanding" : acc >= 70 ? "Nice work" : acc >= 40 ? "Getting there" : "Keep studying";
     el.innerHTML = `<div class="card">
-      <h2>${acc >= 90 ? "🏆 Outstanding!" : acc >= 70 ? "💪 Nice work!" : acc >= 40 ? "📈 Getting there" : "🧠 Keep studying"}</h2>
-      <div class="score-big">${r.score}</div>
-      <div class="stats"><div><b>${acc}%</b>Accuracy</div><div><b>${r.bestStreak}</b>Best streak</div><div><b>+${xp}</b>XP</div></div>
+      ${resultHead(scoreRing(acc, acc + "%", "accuracy"), title, `${r.correct} of ${answered} right`)}
+      <div class="stats"><div><b>${r.score}</b>Score</div><div><b>${r.bestStreak}</b>Best streak</div><div><b>+${xp}</b>XP</div></div>
       ${r.missed.length ? `<h4>Review these (tap to view)</h4><div class="parts-list" id="q-missed"></div>` : answered ? `<p>Perfect round — no misses!</p>` : ""}
       <div class="row"><button class="btn primary" id="q-again">Play again</button><button class="btn" id="q-setup">Change settings</button></div>
     </div>`;
@@ -363,6 +364,7 @@ export function initQuiz(app) {
       b.onclick = () => app.selectGroup(q.unit.ids);
       m?.appendChild(b);
     }
+    if (answered >= 5 && acc >= 80) confetti();
     el.querySelector("#q-again").onclick = () => startRound(r.review);
     el.querySelector("#q-setup").onclick = () => { st.custom = null; renderSetup(); };
   }
@@ -502,7 +504,7 @@ export function initQuiz(app) {
     app.hoverEnabled = true;
     app.viewer.setView("front");
     const tomorrow = Object.values(store.cards || {}).filter((r) => r.due <= Date.now() + DAY).length;
-    el.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:48px">🃏</div>
+    el.innerHTML = `<div class="card" style="text-align:center">${doneBadge()}
       <h2>${done} card${done === 1 ? "" : "s"} reviewed</h2>
       <p class="muted">${tomorrow} due within a day. Short daily reviews beat cramming — spaced repetition moves cards you know further out.</p>
       <button class="btn primary" id="c-back">Done</button></div>`;

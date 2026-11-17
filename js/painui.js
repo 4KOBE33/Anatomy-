@@ -1,6 +1,7 @@
 // "What hurts?" mode: free-text or tap-on-body pain lookup -> structures highlighted in 3D,
 // common causes, red flags, and a guided exercise routine with timers.
 import { PAIN_REGIONS, GLOBAL_RED_FLAGS, DISCLAIMER, matchPain } from "./data/pain.js";
+import { confetti, doneBadge } from "./fx.js";
 import { icon } from "./icons.js";
 import { pretty, store, saveStore, addXP, $, h, esc, toast } from "./util.js";
 let POSES = {};
@@ -58,7 +59,7 @@ export function initPain(app) {
   function search(text) {
     const res = matchPain(text || "");
     if (!res.length) {
-      el.querySelector("#p-result").innerHTML = `<div class="card empty"><div class="big">🤔</div>I couldn't place that. Try words like “lower back”, “knee”, “heel”, or tap the body.</div>`;
+      el.querySelector("#p-result").innerHTML = `<div class="card empty"><div class="big">${icon("explore")}</div>I couldn't place that. Try words like “lower back”, “knee”, “heel”, or tap the body.</div>`;
       return;
     }
     showRegion(res[0].region, res.slice(1, 4).map((r) => r.region));
@@ -121,7 +122,7 @@ export function initPain(app) {
       const card = h(`<div class="ex">
         <div class="ex-head"><b>${i + 1}. ${esc(ex.name)}</b><span class="type ${esc(ex.type)}">${esc(ex.type)}</span></div>
         <div class="muted" style="font-size:12px">${doseText(ex.dose)} · ${"●".repeat(ex.level || 1)}${"○".repeat(3 - (ex.level || 1))}</div>
-        <div class="ex-body hidden"><ol>${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>${ex.cue ? `<div class="cue">💡 ${esc(ex.cue)}</div>` : ""}</div>
+        <div class="ex-body hidden"><ol>${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>${ex.cue ? `<div class="cue">${icon("facts")}${esc(ex.cue)}</div>` : ""}</div>
         ${POSES[`${r.id}|${ex.name}`]?.dofs ? `<button class="linkbtn demo-btn" title="Show this exercise on the 3D body">${icon("play")}3D</button>` : ""}
       </div>`);
       card.querySelector(".demo-btn")?.addEventListener("click", (e) => {
@@ -244,7 +245,7 @@ export function initPain(app) {
           <div class="qhead"><span>Exercise ${s.i + 1}/${region.exercises.length}</span><span>Set ${s.set}/${s.sets}</span></div>
           <h2 style="margin:6px 0">${esc(ex.name)}</h2><span class="type ${esc(ex.type)}">${esc(ex.type)}</span>${legend}
           <ol>${ex.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
-          ${ex.cue ? `<div class="cue" style="color:var(--accent2)">💡 ${esc(ex.cue)}</div>` : ""}
+          ${ex.cue ? `<div class="cue" style="color:var(--accent2)">${icon("facts")}${esc(ex.cue)}</div>` : ""}
           <div id="r-ring">${hold ? ring(1, hold, "hold") : ring(1, ex.dose?.reps || "✓", "reps")}</div>
           <div class="row" style="justify-content:center">
             ${hold ? `<button class="btn primary" id="r-go">${icon("play")}Start ${hold}s</button>` : `<button class="btn primary" id="r-done">${icon("check")}Set done</button>`}
@@ -272,10 +273,12 @@ export function initPain(app) {
       saveStore();
       addXP(40);
       app.motion.stop();
-      modal.innerHTML = `<div class="card routine" style="text-align:center"><div style="font-size:54px">🎉</div><h2>Routine complete!</h2>
+      modal.innerHTML = `<div class="card routine" style="text-align:center">${doneBadge()}<h2>Routine complete</h2>
         <p class="muted">+40 XP · ${store.routines} routine${store.routines > 1 ? "s" : ""} done so far. Consistency beats intensity — try this daily for 2–3 weeks.</p>
         <button class="btn primary" id="r-close">Close</button></div>`;
       modal.querySelector("#r-close").onclick = stop;
+      const rc = modal.querySelector(".card").getBoundingClientRect();
+      confetti({ x: rc.left + rc.width / 2, y: rc.top + 40 });
     };
     show();
     app.openPanelMobile();

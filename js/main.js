@@ -5,6 +5,7 @@ import {
 } from "./util.js";
 import { initLearn } from "./learn.js";
 import { icon } from "./icons.js";
+import { maybeTour, startTour } from "./tour.js";
 import { initQuiz } from "./quiz.js";
 import { initPain } from "./painui.js";
 
@@ -40,6 +41,7 @@ async function boot() {
   onXP(updateXP);
   $("#skin-opacity").addEventListener("input", (e) => app.viewer.setSkinOpacity(+e.target.value));
   $("#btn-body").onclick = () => loadBody(app.body === "male" ? "female" : "male");
+  $("#btn-tour").onclick = () => { closeDrawerMobile(); startTour(); };
   await loadBody(app.body, true);
   setTimeout(() => ($("#hint").style.opacity = 0), 7000);
 
@@ -111,6 +113,7 @@ async function loadBody(body, first = false) {
   updateInset();
   v.setView("front");
   $("#loading").classList.add("hidden");
+  setTimeout(maybeTour, 600);
   const btn = $("#btn-body");
   btn.innerHTML = `<span class="sym">${cfg.icon}</span><span class="only-desktop">${cfg.label}</span>`;
   btn.title = `Showing the ${cfg.label.toLowerCase()} body — tap to switch`;

@@ -1,6 +1,7 @@
 // Timed practical exam ("bell-ringer" / tag test): each station pins one structure on a dissected 3D
 // specimen; you type the answer from memory before the bell. No going back, graded at the end.
 import { pretty, store, saveStore, addXP, recordAnswer, $, h, esc, shuffle } from "./util.js";
+import { confetti, scoreRing, resultHead } from "./fx.js";
 import { icon } from "./icons.js";
 
 const PRESETS = [
@@ -310,14 +311,14 @@ export function initExam(app, el, back) {
     const mins = Math.round((Date.now() - ex.t0) / 60000);
     const pass = pct >= PASS;
     el.innerHTML = `<div class="card">
-        <h2>${pass ? "✅ Pass" : "❌ Not yet"} — ${esc(ex.preset.name)}</h2>
-        <div class="score-big">${pct}%</div>
+        ${resultHead(scoreRing(pct, pct + "%", `pass ${PASS}%`, pass ? "good" : "low"), pass ? "Pass" : "Not yet", esc(ex.preset.name))}
         <div class="stats"><div><b>${score}/${done.length}</b>Correct</div><div><b>${done.filter((s) => s.flagged).length}</b>Flagged</div><div><b>${mins} min</b>Time</div></div>
         ${early ? `<p class="muted">Ended early after ${done.length} station${done.length === 1 ? "" : "s"}.</p>` : ""}
         <p class="muted" style="font-size:12px">Tap a station to see the specimen again. Misses go into your weak-spot review and flashcards.</p>
         <div class="exam-review" id="x-review"></div>
         <div class="row"><button class="btn primary" id="x-again">Retake</button><button class="btn" id="x-setup">Choose another exam</button></div>
       </div>`;
+    if (pass && done.length >= 5) confetti();
     const list = el.querySelector("#x-review");
     done.forEach((s, i) => {
       const ok = s.result.mark === 1;

@@ -8,6 +8,7 @@ try { ({ LESSONS_FEMALE } = await import("./data/lessons_female.js")); } catch {
 const ALL_LESSONS = [...LESSONS_MAIN, ...LESSONS_NERVES, ...LESSONS_FEMALE];
 import { pretty, store, saveStore, addXP, $, h, esc, toast, sysColor } from "./util.js";
 import { initMotion } from "./motion.js";
+import { confetti, resultHead, doneBadge } from "./fx.js";
 import { icon } from "./icons.js";
 
 const SHORT = { jaw: "Jaw", "sh-abd": "Shoulder abduction", "sh-flex": "Shoulder flexion", "sh-rot": "Shoulder rotation", elbow: "Elbow",
@@ -212,13 +213,12 @@ export function initLearn(app) {
     const idx = LESSONS.indexOf(L);
     const nextL = LESSONS[idx + 1];
     el.innerHTML = `<div class="card">
-        <h2>${esc(L.title)} — done!</h2>
-        <p class="muted">${first ? "+50 XP" : "+10 XP (review)"}</p>
-        <h4>Key takeaways</h4>
-        ${(L.takeaways || []).map((t) => `<p>✅ ${esc(t)}</p>`).join("")}
+        ${resultHead(doneBadge(), "Lesson complete", `${esc(L.title)} · ${first ? "+50 XP" : "+10 XP (review)"}`)}
+        ${L.takeaways?.length ? `<h4>Key takeaways</h4><ul class="takeaways">${L.takeaways.map((t) => `<li>${icon("check")}<span>${esc(t)}</span></li>`).join("")}</ul>` : ""}
         <button class="btn primary wide" id="l-quiz" style="margin-top:10px">${icon("quiz")}Quiz me on this lesson</button>
         <div class="row">${nextL ? `<button class="btn" id="l-nextl">Next: ${esc(nextL.title)}${icon("next")}</button>` : ""}<button class="btn" id="l-all">All lessons</button></div>
       </div>`;
+    if (first) confetti();
     el.querySelector("#l-quiz").onclick = () => {
       const units = lessonUnits(L);
       if (units.length < 4) return toast("Not enough structures for a quiz here");
