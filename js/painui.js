@@ -13,7 +13,7 @@ const PAIN_COLOR = 0xff8a3d;
 
 export function initPain(app) {
   const el = $("#panel-pain");
-  const st = { region: null, others: [], tapMode: false, severity: 3, text: "" };
+  const st = { region: null, others: [], prev: null, playing: null, tapMode: false, severity: 3, text: "" };
 
   const idsFor = (subs) => {
     const ss = (subs || []).map((s) => s.toLowerCase());
@@ -65,7 +65,10 @@ export function initPain(app) {
     showRegion(res[0].region, res.slice(1, 4).map((r) => r.region));
   }
 
-  function showRegion(region, others) {
+  function showRegion(region, others, { fromTap = false } = {}) {
+    stopDemo({ remark: false });
+    // a tap on the body that lands somewhere new can be undone with "Back"
+    st.prev = fromTap && st.region && st.region !== region ? { region: st.region, others: st.others } : null;
     st.region = region;
     st.others = others;
     st.tapMode = false;
@@ -94,7 +97,9 @@ export function initPain(app) {
       : sev >= 6 ? `<div class="alert amber">Keep exercises gentle and pain-free. Mild discomfort (≤3/10) is okay; sharp or worsening pain means stop.</div>` : "";
     const flags = [...(r.redFlags || [])];
     let html = `${sevNote}<div class="card">
-      <h2>${esc(r.name)}</h2>
+      <div class="res-head"><h2>${esc(r.name)}</h2>
+        <button class="icon-btn sm" id="p-clear" title="Clear and pick another spot" aria-label="Clear">${icon("close")}</button></div>
+      ${st.prev ? `<button class="back-chip" id="p-back">${icon("back")}Go back to ${esc(st.prev.region.name)}</button>` : ""}
       ${st.others.length ? `<div class="chips region-chips">Or: ${st.others.map((o, i) => `<button data-o="${i}">${esc(o.name)}</button>`).join("")}</div>` : ""}
       <button class="btn primary wide" style="margin-top:12px" id="p-start">${icon("play")}Start guided routine · ${r.exercises.length} exercises</button>
       <div id="p-ex"></div>
@@ -110,6 +115,8 @@ export function initPain(app) {
       </details>
     </div>`;
     box.innerHTML = html;
+    box.querySelector("#p-clear").onclick = clearRegion;
+    box.querySelector("#p-back")?.addEventListener("click", () => showRegion(st.prev.region, st.prev.others));
     box.querySelectorAll("[data-o]").forEach((b) => (b.onclick = () => showRegion(st.others[+b.dataset.o], [st.region, ...st.others.filter((_, i) => i !== +b.dataset.o)])));
     box.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => {
       const ids = idsFor([b.dataset.s]);
@@ -123,16 +130,20 @@ export function initPain(app) {
         <div class="ex-head"><b>${i + 1}. ${esc(ex.name)}</b><span class="type ${esc(ex.type)}">${esc(ex.type)}</span></div>
         <div class="muted" style="font-size:12px">${doseText(ex.dose)} · ${"●".repeat(ex.level || 1)}${"○".repeat(3 - (ex.level || 1))}</div>
         <div class="ex-body hidden"><ol>${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>${ex.cue ? `<div class="cue">${icon("facts")}${esc(ex.cue)}</div>` : ""}</div>
-        ${POSES[`${r.id}|${ex.name}`]?.dofs ? `<button class="linkbtn demo-btn" title="Show this exercise on the 3D body">${icon("play")}3D</button>` : ""}
+        ${POSES[`${r.id}|${ex.name}`]?.dofs ? `<button class="watch-btn" title="Watch the body do this exercise"></button>` : ""}
       </div>`);
-      card.querySelector(".demo-btn")?.addEventListener("click", (e) => {
+      card.dataset.ex = ex.name;
+      const watch = card.querySelector(".watch-btn");
+      watch?.addEventListener("click", (e) => {
         e.stopPropagation();
-        const d = demoFor(r, ex);
-        card.querySelector(".demo-note")?.remove();
-        card.appendChild(h(`<div class="demo-note">${demoLegend(d)}</div>`));
+        st.playing === ex.name ? stopDemo() : playDemo(r, ex);
       });
       card.querySelector(".ex-head").onclick = () => {
-        card.querySelector(".ex-body").classList.toggle("hidden");
+        const body = card.querySelector(".ex-body");
+        const opening = body.classList.contains("hidden");
+        body.classList.toggle("hidden");
+        if (opening && watch) { if (st.playing !== ex.name) playDemo(r, ex); return; }
+        if (watch) return;
         const ids = idsFor(ex.target);
         app.viewer.select(ids);
         if (ids.length) app.viewer.focusSmart(ids);
@@ -140,6 +151,71 @@ export function initPain(app) {
       exBox.appendChild(card);
     });
     box.querySelector("#p-start").onclick = () => startRoutine(r);
+    syncWatch();
+  }
+
+  // ---------- exercise demos in the result list ----------
+  function playDemo(region, ex) {
+    // building the rig takes a moment: show that the tap registered, then build on the next frame
+    const btn = [...el.querySelectorAll("#p-ex .ex")].find((c) => c.dataset.ex === ex.name)?.querySelector(".watch-btn");
+    if (btn) { btn.classList.add("on"); btn.innerHTML = `${icon("play")}Loading…`; }
+    const token = (st.demoToken = (st.demoToken || 0) + 1);
+    setTimeout(() => requestAnimationFrame(() => {
+      if (token !== st.demoToken || st.region !== region) return; // something else was tapped meanwhile
+      const d = demoFor(region, ex);
+      if (d.none) { toast(d.none); syncWatch(); return; }
+      st.playing = ex.name;
+      syncWatch(d);
+      showNowPlaying(ex, d);
+    }), 30);
+  }
+  function stopDemo({ remark = true } = {}) {
+    st.demoToken = (st.demoToken || 0) + 1; // cancels a demo that's still loading
+    const was = st.playing;
+    st.playing = null;
+    hideNowPlaying();
+    if (!was) { syncWatch(); return; }
+    app.motion?.stop();
+    syncWatch();
+    if (remark && st.region) app.viewer.mark(idsFor(st.region.structures), PAIN_COLOR);
+  }
+  // buttons + legend follow whichever exercise is playing
+  function syncWatch(spec) {
+    el.querySelectorAll("#p-ex .ex").forEach((card) => {
+      const on = card.dataset.ex === st.playing;
+      const b = card.querySelector(".watch-btn");
+      if (b) { b.classList.toggle("on", on); b.innerHTML = on ? `${icon("pause")}Stop` : `${icon("play")}Watch it`; }
+      card.classList.toggle("playing", on);
+      if (!on) card.querySelector(".demo-note")?.remove();
+      else if (spec && !card.querySelector(".demo-note")) card.appendChild(h(`<div class="demo-note">${demoLegend(spec)}</div>`));
+    });
+  }
+  function nowBar() {
+    let bar = $("#now-playing");
+    if (!bar) {
+      bar = h(`<div class="now-playing hidden" id="now-playing"></div>`);
+      $("#stage").appendChild(bar);
+    }
+    return bar;
+  }
+  function showNowPlaying(ex, d) {
+    const [col, txt] = MODE_LABEL[d.mode] || MODE_LABEL.mobility;
+    const bar = nowBar();
+    bar.innerHTML = `<span class="ph-dot" style="background:${col};box-shadow:0 0 8px ${col}"></span>
+      <div class="np-text"><b>${esc(ex.name)}</b><span>${esc(txt)}</span></div>
+      <button class="np-stop" title="Stop the demo" aria-label="Stop the demo">${icon("close")}</button>`;
+    bar.querySelector(".np-stop").onclick = () => stopDemo();
+    bar.classList.remove("hidden");
+  }
+  function hideNowPlaying() { $("#now-playing")?.classList.add("hidden"); }
+
+  function clearRegion() {
+    stopDemo({ remark: false });
+    st.region = null; st.others = []; st.prev = null; st.text = "";
+    app.viewer.clearMarks();
+    app.viewer.select([]);
+    app.viewer.setView("front");
+    render();
   }
 
   function doseText(d = {}) {
@@ -177,7 +253,7 @@ export function initPain(app) {
   }
   function fromPart(id) {
     const ranked = regionFromPart(id);
-    if (ranked.length) showRegion(ranked[0], ranked.slice(1, 4));
+    if (ranked.length) showRegion(ranked[0], ranked.slice(1, 4), { fromTap: true });
   }
   app.pain = { fromPart };
 
@@ -193,10 +269,11 @@ export function initPain(app) {
   function demoLegend(d) {
     if (!d || d.none) return `<span class="muted">${esc(d?.none || "")}</span>`;
     const [col, txt] = MODE_LABEL[d.mode] || MODE_LABEL.mobility;
-    return `<span class="ph-dot" style="background:${col};box-shadow:0 0 8px ${col}"></span> 🎬 ${esc(txt)}${d.note ? ` · <span class="muted">${esc(d.note)}</span>` : ""}`;
+    return `<span class="ph-dot" style="background:${col};box-shadow:0 0 8px ${col}"></span> ${esc(txt)}${d.note ? ` · <span class="muted">${esc(d.note)}</span>` : ""}`;
   }
 
   function startRoutine(region) {
+    stopDemo({ remark: false });
     const modal = el;
     let lastDemo = null;
     const play = (ex) => { if (lastDemo !== ex) { lastDemo = ex; lastSpec = demoFor(region, ex); } return lastSpec; };
@@ -297,9 +374,11 @@ export function initPain(app) {
 
   app.modeHandlers.pain = {
     enter: () => { app.viewer.select([]); app.selectedId = null; render(); if (st.region) showRegion(st.region, st.others); },
-    exit: () => { app.motion?.stop(); st.routine = false; app.viewer.clearMarks(); st.tapMode = false; },
+    exit: () => { stopDemo({ remark: false }); app.motion?.stop(); st.routine = false; app.viewer.clearMarks(); st.tapMode = false; },
     onPick: (id) => {
-      if (id && !st.routine) fromPart(id); // in this mode any tap on the body looks up that spot
+      if (st.routine) return;
+      if (st.playing) { stopDemo(); return; } // a tap while a demo plays just stops it
+      if (id) fromPart(id); // otherwise a tap on the body looks up that spot
     },
   };
 }

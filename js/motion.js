@@ -194,6 +194,34 @@ export function initMotion(app) {
     }
     return Math.sqrt(best);
   }
+  // about `max` points spread over the bones
+  const sampleCapped = (ids, max = 1600) => sampleSet(ids, Math.max(4, Math.min(140, Math.floor(max / Math.max(1, ids.length)))));
+  // Proximal→distal blend weight sampled once on a voxel grid over `box`, then read per vertex with
+  // trilinear interpolation: per-vertex nearest-bone searches were far too slow for whole-body demos.
+  function weightField(prox, dist, box) {
+    const size = box.getSize(V(0, 0, 0));
+    let c = 0.02, nx, ny, nz;
+    for (;;) {
+      nx = Math.ceil(size.x / c) + 2; ny = Math.ceil(size.y / c) + 2; nz = Math.ceil(size.z / c) + 2;
+      if (nx * ny * nz <= 18000) break;
+      c *= 1.2;
+    }
+    const ox = box.min.x - c / 2, oy = box.min.y - c / 2, oz = box.min.z - c / 2;
+    const f = new Float32Array(nx * ny * nz);
+    for (let iz = 0; iz < nz; iz++) for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) {
+      const x = ox + ix * c, y = oy + iy * c, z = oz + iz * c;
+      const dP = nearest(prox, x, y, z), dD = nearest(dist, x, y, z);
+      f[(iz * ny + iy) * nx + ix] = smooth(0.32, 0.68, dP / (dP + dD + 1e-9));
+    }
+    const at = (ix, iy, iz) => f[(Math.min(nz - 1, Math.max(0, iz)) * ny + Math.min(ny - 1, Math.max(0, iy))) * nx + Math.min(nx - 1, Math.max(0, ix))];
+    return (x, y, z) => {
+      const fx = (x - ox) / c, fy = (y - oy) / c, fz = (z - oz) / c;
+      const ix = Math.floor(fx), iy = Math.floor(fy), iz = Math.floor(fz), tx = fx - ix, ty = fy - iy, tz = fz - iz;
+      const l = (a, b, t) => a + (b - a) * t;
+      return l(l(l(at(ix, iy, iz), at(ix + 1, iy, iz), tx), l(at(ix, iy + 1, iz), at(ix + 1, iy + 1, iz), tx), ty),
+        l(l(at(ix, iy, iz + 1), at(ix + 1, iy, iz + 1), tx), l(at(ix, iy + 1, iz + 1), at(ix + 1, iy + 1, iz + 1), tx), ty), tz);
+    };
+  }
   const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
   // spec: { dofs: [names], a: [muscle names], b: [muscle names], both, focusDof }
@@ -205,7 +233,10 @@ export function initMotion(app) {
     const allA = muscleIds(spec.a || [], spec.both), allB = muscleIds(spec.b || [], spec.both);
     const muscles = [...new Set([...allA, ...allB])];
     const boneIds = new Set(joints.flatMap((j) => [...j.J.distal]));
-    const samples = joints.map((j) => ({ prox: sampleSet([...j.J.prox]), dist: sampleSet([...j.J.distal]) }));
+    const tbox = new THREE.Box3();
+    for (const id of muscles) tbox.union(v.parts.get(id).mesh.geometry.boundingBox);
+    tbox.expandByScalar(0.03);
+    const fields = muscles.length ? joints.map((j) => weightField(sampleCapped([...j.J.prox]), sampleCapped([...j.J.distal]), tbox)) : [];
     const meshes = muscles.map((id) => {
       const mesh = v.parts.get(id).mesh, g = mesh.geometry;
       const pos = g.attributes.position, nor = g.attributes.normal;
@@ -213,12 +244,8 @@ export function initMotion(app) {
       const base = Float32Array.from(pos.array), baseN = Float32Array.from(nor.array);
       const w = joints.map(() => new Float32Array(n));
       joints.forEach((j, k) => {
-        const s = samples[k];
-        for (let i = 0; i < n; i++) {
-          const x = base[i * 3], y = base[i * 3 + 1], z = base[i * 3 + 2];
-          const dP = nearest(s.prox, x, y, z), dD = nearest(s.dist, x, y, z);
-          w[k][i] = smooth(0.32, 0.68, dP / (dP + dD + 1e-9));
-        }
+        const F = fields[k];
+        for (let i = 0; i < n; i++) w[k][i] = F(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]);
       });
       // bulge profile: strongest mid-belly, none in tendons
       const axis = mesh.material.userData.u.uAxis.value;
@@ -233,6 +260,49 @@ export function initMotion(app) {
       const size = app.byId.get(id).size;
       return { id, mesh, g, base, baseN, w, bulge, amp: Math.min(0.007, size * 0.025), group: allA.includes(id) ? "a" : "b" };
     });
+    // Optional context: the rest of the musculature rides along, so the whole body does the exercise.
+    // Muscles away from a moving joint move rigidly with their bones (a matrix — free per frame); only
+    // those spanning the joint are blended per vertex, against coarse bone samples to keep setup quick.
+    const ctxRigid = [], ctxMeshes = [];
+    if (spec.context) {
+      const moving = new Set(muscles);
+      const skel = app.parts.filter((p) => p.system === "skeletal" && v.parts.has(p.id)).map((p) => p.id);
+      const cs = joints.map((j) => ({ dist: sampleCapped([...j.J.distal], 600), rest: sampleCapped(skel.filter((id) => !j.J.distal.has(id)), 600) }));
+      const cands = [];
+      const c = V(0, 0, 0);
+      for (const p of app.parts) {
+        if ((p.system !== "muscular" && p.system !== "connective") || moving.has(p.id)) continue;
+        const mesh = v.parts.get(p.id)?.mesh;
+        if (!mesh) continue;
+        const g = mesh.geometry, bb = g.boundingBox;
+        bb.getCenter(c);
+        const near = joints.map((j) => bb.distanceToPoint(j.J.pivot) < 0.09);
+        const side = joints.map((j, k) => (nearest(cs[k].dist, c.x, c.y, c.z) < nearest(cs[k].rest, c.x, c.y, c.z) ? 1 : 0));
+        if (!near.some(Boolean)) { if (side.some(Boolean)) ctxRigid.push({ id: p.id, mesh, side }); continue; }
+        cands.push({ id: p.id, mesh, g, near, side });
+      }
+      const cfields = joints.map((j, k) => {
+        const box = new THREE.Box3();
+        for (const m of cands) if (m.near[k]) box.union(m.g.boundingBox);
+        return box.isEmpty() ? null : weightField(cs[k].rest, cs[k].dist, box.expandByScalar(0.03));
+      });
+      for (const m of cands) {
+        const g = m.g, n = g.attributes.position.count;
+        const base = Float32Array.from(g.attributes.position.array), baseN = Float32Array.from(g.attributes.normal.array);
+        const w = joints.map((j, k) => {
+          const arr = new Float32Array(n);
+          if (!m.near[k]) return arr.fill(m.side[k]);
+          const F = cfields[k];
+          for (let i = 0; i < n; i++) arr[i] = F(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]);
+          return arr;
+        });
+        // vertices that never move (weight 0 for every joint) are skipped each frame
+        const act = [];
+        for (let i = 0; i < n; i++) if (w.some((wk) => wk[i] > 0.001)) act.push(i);
+        if (!act.length) continue;
+        ctxMeshes.push({ id: m.id, mesh: m.mesh, g, base, baseN, w, bulge: new Float32Array(n), amp: 0, group: "c", active: Uint32Array.from(act) });
+      }
+    }
     // the swing must stay on screen: sphere around the moving joint covering everything that moves
     const piv = J[spec.focusDof ? DOF[spec.focusDof][0] : joints[joints.length - 1].joint].pivot;
     let r = 0.08;
@@ -241,7 +311,7 @@ export function initMotion(app) {
       if (!bb) continue;
       for (const c of [bb.min, bb.max]) r = Math.max(r, c.distanceTo(piv));
     }
-    return { joints, muscles, allA, allB, boneIds: [...boneIds], meshes, pivot: piv, radius: Math.min(r, 0.95) };
+    return { joints, muscles, allA, allB, boneIds: [...boneIds], meshes: [...meshes, ...ctxMeshes], ctxRigid, pivot: piv, radius: Math.min(r, 0.95) };
   }
 
   const tmpP = V(0, 0, 0), tmpN = V(0, 0, 0), tmpQ = V(0, 0, 0);
@@ -267,12 +337,19 @@ export function initMotion(app) {
       for (const j of rig.joints) if (j.J.distal.has(id)) mesh.matrix.multiply(j.mat);
       mesh.matrixWorldNeedsUpdate = true;
     }
+    for (const c of rig.ctxRigid || []) {
+      c.mesh.matrixAutoUpdate = false;
+      c.mesh.matrix.identity();
+      rig.joints.forEach((j, k) => c.side[k] && c.mesh.matrix.multiply(j.mat));
+      c.mesh.matrixWorldNeedsUpdate = true;
+    }
     // muscles: blend per joint (distal joint first), then bulge along the normal as they shorten
     for (const m of rig.meshes) {
       const pos = m.g.attributes.position.array, nor = m.g.attributes.normal.array;
       const a = act(m);
-      const n = pos.length / 3;
-      for (let i = 0; i < n; i++) {
+      const idx = m.active, count = idx ? idx.length : pos.length / 3;
+      for (let q = 0; q < count; q++) {
+        const i = idx ? idx[q] : q;
         tmpP.set(m.base[i * 3], m.base[i * 3 + 1], m.base[i * 3 + 2]);
         tmpN.set(m.baseN[i * 3], m.baseN[i * 3 + 1], m.baseN[i * 3 + 2]);
         const b = m.bulge[i] * m.amp * a;
@@ -300,6 +377,11 @@ export function initMotion(app) {
       mesh.matrix.identity();
       mesh.matrixAutoUpdate = true;
       mesh.matrixWorldNeedsUpdate = true;
+    }
+    for (const c of rig.ctxRigid || []) {
+      c.mesh.matrix.identity();
+      c.mesh.matrixAutoUpdate = true;
+      c.mesh.matrixWorldNeedsUpdate = true;
     }
     for (const m of rig.meshes) {
       m.g.attributes.position.array.set(m.base);
@@ -379,6 +461,7 @@ export function initMotion(app) {
   // ---------- exercise demos ----------
   // spec: { dofs: [ {dof: deg, ...}, ... ] | null, muscles: [...], mode: "stretch" | "work" | "mobility" }
   const MODE_COLOR = { stretch: 0x46a8ff, work: 0xff4a3d, mobility: 0xffa43d };
+  const DEMO_GHOST = 0.3;
   const ease = (x) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, x)));
   function demo(spec) {
     stop();
@@ -393,11 +476,13 @@ export function initMotion(app) {
     // frame the most proximal moving joint (the whole body when the spine moves)
     const prox = keys.map((d) => DOF[d][0]).sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))[0];
     const focusDof = keys.find((d) => DOF[d][0] === prox);
-    st.rig = buildRig({ dofs: keys, a: spec.muscles || [], b: [], focusDof });
+    const t0 = performance.now();
+    st.rig = buildRig({ dofs: keys, a: spec.muscles || [], b: [], focusDof, context: true });
+    st.rigMs = performance.now() - t0;
     st.demo = { spec, keys, t: 0, frames: [{}, ...spec.dofs] };
     st.move = { id: "demo" };
-    const keep = new Set(st.rig.muscles);
-    v.hide(app.parts.filter((p) => (p.system === "muscular" || p.system === "connective") && !keep.has(p.id)).map((p) => p.id));
+    // the whole body does the exercise; everything but the skeleton and the target muscles is see-through
+    v.isolate([...st.rig.allA, ...app.parts.filter((p) => p.system === "skeletal").map((p) => p.id)], DEMO_GHOST);
     v.clearMarks();
     v.mark(st.rig.allA, MODE_COLOR[spec.mode] || MODE_COLOR.mobility);
     const groups = new Map();
@@ -461,6 +546,7 @@ export function initMotion(app) {
     reset: () => { J = null; },
     demo,
     active: () => !!st.move,
+    rigMs: () => st.rigMs,
     current: () => st.move,
     setPlaying: (p) => { st.playing = p; },
     playing: () => st.playing,
