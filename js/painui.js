@@ -260,11 +260,26 @@ export function initPain(app) {
   // ---------- routine player ----------
   // Play an exercise on the 3D skeleton. Returns the pose spec (or a reason it can't be shown).
   function demoFor(region, ex) {
-    const spec = POSES[`${region.id}|${ex.name}`];
-    if (!spec?.dofs) return { none: spec?.note || "No 3D demo for this one — follow the steps." };
+    const raw = POSES[`${region.id}|${ex.name}`];
+    if (!raw?.dofs) return { none: raw?.note || "No 3D demo for this one — follow the steps." };
     if (app.body !== "male") return { none: "3D demos use the male body's full skeleton and muscles — switch with ♂ at the top." };
+    const posture = postureFor(ex, raw);
+    // lying exercises are now shown lying down, so drop the "Shown standing —" apology from the note
+    const note = posture && raw.note ? raw.note.replace(/^Shown (standing|upright)( as [^—]*)? — (\w)/i, (_, a, b, c) => c.toUpperCase()) : raw.note;
+    const spec = { ...raw, posture, note };
     app.motion.demo(spec);
     return spec;
+  }
+  // Lying exercises get laid down on a mat. Bridges and trunk rotations need the pelvis or the left side
+  // to move (the rig can't), and planks need both arms, so those stay standing with their note.
+  const STAY_STANDING = /^(glute bridge|single-leg bridge|lower trunk rotation|side-lying adduction)$/i;
+  function postureFor(ex, spec) {
+    const n = (spec.note || "").toLowerCase();
+    if (STAY_STANDING.test(ex.name) || n.startsWith("shown upright")) return null;
+    if (/on your (left |other )?side|side-lying/.test(n)) return "side";
+    if (/on your back/.test(n)) return "supine";
+    if (/face down/.test(n)) return "prone";
+    return null;
   }
   function demoLegend(d) {
     if (!d || d.none) return `<span class="muted">${esc(d?.none || "")}</span>`;

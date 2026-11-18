@@ -275,6 +275,7 @@ const FIBER_DIR = [
 const tmpV = new THREE.Vector3();
 const tmpV2 = new THREE.Vector2();
 const tmpM = new THREE.Matrix4();
+const tmpUp = new THREE.Vector3();
 const FLIP_Y = new THREE.Matrix4().makeScale(1, -1, 1);
 const CLIP_AXES = { transverse: new THREE.Vector3(0, -1, 0), sagittal: new THREE.Vector3(-1, 0, 0), coronal: new THREE.Vector3(0, 0, -1) };
 const CLIP_RANGE = { transverse: [0, 1.75], sagittal: [-0.35, 0.35], coronal: [-0.2, 0.2] };
@@ -355,7 +356,10 @@ export class Viewer {
     const rim2 = new THREE.DirectionalLight(0xffe2d0, 0.6);
     rim2.position.set(2.4, 0.8, -2.2);
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0x40302a, 0.45);
-    this.scene.add(key, fillL, rim, rim2, hemi);
+    // lights live in a rig that turns with the body's posture (lying demos keep the usual lighting)
+    this.lightRig = new THREE.Group();
+    this.lightRig.add(key, fillL, rim, rim2, hemi);
+    this.scene.add(this.lightRig);
     // shadow-only light from above: casts a soft contact shadow onto the floor, adds no light itself
     const sun = new THREE.DirectionalLight(0xffffff, 0.0001);
     sun.position.set(0.35, 4, 0.9);
@@ -390,6 +394,7 @@ export class Viewer {
     floor.renderOrder = -1;
     floor.raycast = () => {};
     this.scene.add(floor);
+    this.floorGlow = floor;
 
     const c = (this.controls = new OrbitControls(this.camera, r.domElement));
     c.enableDamping = true;
@@ -877,6 +882,36 @@ export class Viewer {
     }[name] || [0, e, D];
     this._animateTo(t, new THREE.Vector3(...pos));
   }
+  // Lay the body down for exercise demos without moving any geometry: the camera's "up", the light
+  // rig and the orbit pivot turn so the floor is under the body's back, front or left side.
+  setPosture(p) {
+    const UP = { supine: [0, 0, 1], prone: [0, 0, -1], side: [-1, 0, 0] };
+    const name = UP[p] ? p : null;
+    if (name === this.posture) return;
+    this.posture = name;
+    const up = new THREE.Vector3(...(UP[name] || [0, 1, 0]));
+    this.lightRig.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+    this.floorGlow.visible = !name;
+    this._upTween = { t: 0, from: this.camera.up.clone(), to: up };
+    if (!this.mat) {
+      this.mat = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x2c3a52, roughness: 0.92, transparent: true, opacity: 0.92 }));
+      this.mat.raycast = () => {};
+      this.scene.add(this.mat);
+    }
+    this.mat.visible = !!name;
+    if (name) {
+      const bb = this.bodyBox, cy = (bb.min.y + bb.max.y) / 2, L = bb.max.y - bb.min.y + 0.25;
+      if (name === "side") { this.mat.scale.set(0.014, L, 0.8); this.mat.position.set(bb.max.x + 0.009, cy, (bb.min.z + bb.max.z) / 2); }
+      else { this.mat.scale.set(0.8, L, 0.014); this.mat.position.set(0, cy, name === "supine" ? bb.min.z - 0.009 : bb.max.z + 0.009); }
+    }
+    this._shadowDirty = true;
+    this.invalidate();
+  }
+  _setUp(v) {
+    this.camera.up.copy(v);
+    this.controls._quat.setFromUnitVectors(v, new THREE.Vector3(0, 1, 0));
+    this.controls._quatInverse.copy(this.controls._quat).invert();
+  }
   _animateTo(target, pos) {
     this._tween = { t: 0, fromT: this.controls.target.clone(), fromP: this.camera.position.clone(), toT: target.clone(), toP: pos.clone() };
     this.invalidate();
@@ -1018,7 +1053,10 @@ export class Viewer {
   screenPos(id) {
     const p = this.parts.get(id);
     if (!p) return null;
-    p.mesh.geometry.boundingBox.getCenter(tmpV);
+    // animated muscles carry a live anchor (a vertex that moves with them); rigidly moved ones a matrix
+    const a = p.mesh.userData.anchor;
+    if (a) tmpV.copy(a); else p.mesh.geometry.boundingBox.getCenter(tmpV);
+    tmpV.applyMatrix4(p.mesh.matrixWorld);
     tmpV.project(this.camera);
     if (tmpV.z > 1) return null;
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -1042,6 +1080,15 @@ export class Viewer {
       this.controls.target.lerpVectors(tw.fromT, tw.toT, k);
       this.camera.position.lerpVectors(tw.fromP, tw.toP, k);
       if (tw.t >= 1) this._tween = null;
+      this._dirty = true;
+    }
+    if (this._upTween) {
+      const ut = this._upTween;
+      ut.t = Math.min(1, ut.t + dt / 0.8);
+      const k = 1 - Math.pow(1 - ut.t, 3);
+      this._setUp(tmpUp.lerpVectors(ut.from, ut.to, k).normalize());
+      this.camera.lookAt(this.controls.target);
+      if (ut.t >= 1) this._upTween = null;
       this._dirty = true;
     }
     this._hoverTick?.();

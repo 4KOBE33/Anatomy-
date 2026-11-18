@@ -2,7 +2,7 @@
 // from the bone meshes) while the muscles that produce the movement deform with them (each vertex follows
 // the bone it is nearest, blended across the joint) and bulge as they shorten.
 import * as THREE from "three";
-import { pretty, store, saveStore, addXP, $, h, esc } from "./util.js";
+import { pretty, store, saveStore, addXP, $, h, esc, regionOf } from "./util.js";
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -194,8 +194,21 @@ export function initMotion(app) {
     }
     return Math.sqrt(best);
   }
-  // about `max` points spread over the bones
-  const sampleCapped = (ids, max = 1600) => sampleSet(ids, Math.max(4, Math.min(140, Math.floor(max / Math.max(1, ids.length)))));
+  // Bone samples at a fixed density (per metre of bone size), so the moving and stationary sets are
+  // equally fine-grained: a fixed count per bone or per set biases every vertex toward the denser side.
+  const DENS = 70;
+  function sampleDense(ids) {
+    const out = [];
+    for (const id of ids) {
+      const a = v.parts.get(id)?.mesh.geometry.attributes.position;
+      if (!a) continue;
+      const want = Math.max(3, Math.round((app.byId.get(id)?.size || 0.05) * DENS));
+      const step = Math.max(1, Math.floor(a.count / want));
+      for (let i = 0; i < a.count; i += step) out.push(a.getX(i), a.getY(i), a.getZ(i));
+    }
+    return new Float32Array(out);
+  }
+  const LEG_JOINTS = new Set(["hip", "knee", "ankle", "subtalar"]);
   // Proximal→distal blend weight sampled once on a voxel grid over `box`, then read per vertex with
   // trilinear interpolation: per-vertex nearest-bone searches were far too slow for whole-body demos.
   function weightField(prox, dist, box) {
@@ -203,7 +216,7 @@ export function initMotion(app) {
     let c = 0.02, nx, ny, nz;
     for (;;) {
       nx = Math.ceil(size.x / c) + 2; ny = Math.ceil(size.y / c) + 2; nz = Math.ceil(size.z / c) + 2;
-      if (nx * ny * nz <= 18000) break;
+      if (nx * ny * nz <= 12000) break;
       c *= 1.2;
     }
     const ox = box.min.x - c / 2, oy = box.min.y - c / 2, oz = box.min.z - c / 2;
@@ -233,10 +246,52 @@ export function initMotion(app) {
     const allA = muscleIds(spec.a || [], spec.both), allB = muscleIds(spec.b || [], spec.both);
     const muscles = [...new Set([...allA, ...allB])];
     const boneIds = new Set(joints.flatMap((j) => [...j.J.distal]));
-    const tbox = new THREE.Box3();
-    for (const id of muscles) tbox.union(v.parts.get(id).mesh.geometry.boundingBox);
-    tbox.expandByScalar(0.03);
-    const fields = muscles.length ? joints.map((j) => weightField(sampleCapped([...j.J.prox]), sampleCapped([...j.J.distal]), tbox)) : [];
+    // Which side of each joint a muscle belongs to is decided by its nearest bone: the joint's moving
+    // (distal) bones vs every bone that stays put. For leg joints the arms are left out of the
+    // stationary set — the hands hang against the thighs and would otherwise "hold" thigh muscles.
+    const skel = app.parts.filter((p) => p.system === "skeletal" && v.parts.has(p.id)).map((p) => p.id);
+    const isArm = (id) => { const c = app.byId.get(id).center; return Math.abs(c[0]) > 0.19 && c[1] > 0.45 && c[1] < 1.45; };
+    const cs = joints.map((j) => ({
+      dist: sampleDense([...j.J.distal]),
+      rest: sampleDense(skel.filter((id) => !j.J.distal.has(id) && !(LEG_JOINTS.has(j.joint) && isArm(id)))),
+    }));
+    // Context (optional): the rest of the musculature rides along, so the whole body does the exercise.
+    // Muscles away from a moving joint move rigidly with their bones (a matrix — free per frame); only
+    // those near the joint are blended per vertex.
+    const moving = new Set(muscles);
+    const ctxRigid = [], cands = [];
+    if (spec.context) {
+      const c = V(0, 0, 0);
+      for (const p of app.parts) {
+        if ((p.system !== "muscular" && p.system !== "connective") || moving.has(p.id)) continue;
+        const mesh = v.parts.get(p.id)?.mesh;
+        if (!mesh) continue;
+        const g = mesh.geometry, bb = g.boundingBox;
+        const near = joints.map((j) => bb.distanceToPoint(j.J.pivot) < 0.09);
+        // which side of each joint the muscle rides with: majority vote of points spread along it
+        const pa = g.attributes.position, stepV = Math.max(1, Math.floor(pa.count / 15));
+        const side = joints.map((j, k) => {
+          let dv = 0, nv = 0;
+          for (let i = 0; i < pa.count; i += stepV) {
+            c.fromBufferAttribute(pa, i);
+            if (nearest(cs[k].dist, c.x, c.y, c.z) < nearest(cs[k].rest, c.x, c.y, c.z)) dv++;
+            nv++;
+          }
+          return dv * 2 > nv ? 1 : 0;
+        });
+        // arm muscles never ride with a leg joint (the stationary set leaves the arms out for leg joints)
+        if (regionOf(p, p.kb) === "upper") joints.forEach((j, k) => { if (LEG_JOINTS.has(j.joint)) { side[k] = 0; near[k] = false; } });
+        if (!near.some(Boolean)) { if (side.some(Boolean)) ctxRigid.push({ id: p.id, mesh, side }); continue; }
+        cands.push({ id: p.id, mesh, g, near, side });
+      }
+    }
+    // one weight field per joint, over everything that gets blended there (target muscles + nearby context)
+    const fields = joints.map((j, k) => {
+      const box = new THREE.Box3();
+      for (const id of muscles) box.union(v.parts.get(id).mesh.geometry.boundingBox);
+      for (const m of cands) if (m.near[k]) box.union(m.g.boundingBox);
+      return box.isEmpty() ? null : weightField(cs[k].rest, cs[k].dist, box.expandByScalar(0.03));
+    });
     const meshes = muscles.map((id) => {
       const mesh = v.parts.get(id).mesh, g = mesh.geometry;
       const pos = g.attributes.position, nor = g.attributes.normal;
@@ -258,50 +313,28 @@ export function initMotion(app) {
         bulge[i] = Math.sin(Math.PI * d) * (1 - (tend ? tend[i] : 0));
       }
       const size = app.byId.get(id).size;
-      return { id, mesh, g, base, baseN, w, bulge, amp: Math.min(0.007, size * 0.025), group: allA.includes(id) ? "a" : "b" };
+      // label anchor: the vertex nearest the muscle's resting centre, so its name follows it as it moves
+      const cc = g.boundingBox.getCenter(V(0, 0, 0));
+      let anchorIdx = 0, ad = Infinity;
+      for (let i = 0; i < n; i++) { const d = (base[i * 3] - cc.x) ** 2 + (base[i * 3 + 1] - cc.y) ** 2 + (base[i * 3 + 2] - cc.z) ** 2; if (d < ad) { ad = d; anchorIdx = i; } }
+      return { id, mesh, g, base, baseN, w, bulge, amp: Math.min(0.007, size * 0.025), group: allA.includes(id) ? "a" : "b", anchorIdx };
     });
-    // Optional context: the rest of the musculature rides along, so the whole body does the exercise.
-    // Muscles away from a moving joint move rigidly with their bones (a matrix — free per frame); only
-    // those spanning the joint are blended per vertex, against coarse bone samples to keep setup quick.
-    const ctxRigid = [], ctxMeshes = [];
-    if (spec.context) {
-      const moving = new Set(muscles);
-      const skel = app.parts.filter((p) => p.system === "skeletal" && v.parts.has(p.id)).map((p) => p.id);
-      const cs = joints.map((j) => ({ dist: sampleCapped([...j.J.distal], 600), rest: sampleCapped(skel.filter((id) => !j.J.distal.has(id)), 600) }));
-      const cands = [];
-      const c = V(0, 0, 0);
-      for (const p of app.parts) {
-        if ((p.system !== "muscular" && p.system !== "connective") || moving.has(p.id)) continue;
-        const mesh = v.parts.get(p.id)?.mesh;
-        if (!mesh) continue;
-        const g = mesh.geometry, bb = g.boundingBox;
-        bb.getCenter(c);
-        const near = joints.map((j) => bb.distanceToPoint(j.J.pivot) < 0.09);
-        const side = joints.map((j, k) => (nearest(cs[k].dist, c.x, c.y, c.z) < nearest(cs[k].rest, c.x, c.y, c.z) ? 1 : 0));
-        if (!near.some(Boolean)) { if (side.some(Boolean)) ctxRigid.push({ id: p.id, mesh, side }); continue; }
-        cands.push({ id: p.id, mesh, g, near, side });
-      }
-      const cfields = joints.map((j, k) => {
-        const box = new THREE.Box3();
-        for (const m of cands) if (m.near[k]) box.union(m.g.boundingBox);
-        return box.isEmpty() ? null : weightField(cs[k].rest, cs[k].dist, box.expandByScalar(0.03));
+    const ctxMeshes = [];
+    for (const m of cands) {
+      const g = m.g, n = g.attributes.position.count;
+      const base = Float32Array.from(g.attributes.position.array), baseN = Float32Array.from(g.attributes.normal.array);
+      const w = joints.map((j, k) => {
+        const arr = new Float32Array(n);
+        if (!m.near[k]) return arr.fill(m.side[k]);
+        const F = fields[k];
+        for (let i = 0; i < n; i++) arr[i] = F(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]);
+        return arr;
       });
-      for (const m of cands) {
-        const g = m.g, n = g.attributes.position.count;
-        const base = Float32Array.from(g.attributes.position.array), baseN = Float32Array.from(g.attributes.normal.array);
-        const w = joints.map((j, k) => {
-          const arr = new Float32Array(n);
-          if (!m.near[k]) return arr.fill(m.side[k]);
-          const F = cfields[k];
-          for (let i = 0; i < n; i++) arr[i] = F(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]);
-          return arr;
-        });
-        // vertices that never move (weight 0 for every joint) are skipped each frame
-        const act = [];
-        for (let i = 0; i < n; i++) if (w.some((wk) => wk[i] > 0.001)) act.push(i);
-        if (!act.length) continue;
-        ctxMeshes.push({ id: m.id, mesh: m.mesh, g, base, baseN, w, bulge: new Float32Array(n), amp: 0, group: "c", active: Uint32Array.from(act) });
-      }
+      // vertices that never move (weight 0 for every joint) are skipped each frame
+      const act = [];
+      for (let i = 0; i < n; i++) if (w.some((wk) => wk[i] > 0.001)) act.push(i);
+      if (!act.length) continue;
+      ctxMeshes.push({ id: m.id, mesh: m.mesh, g, base, baseN, w, bulge: new Float32Array(n), amp: 0, group: "c", active: Uint32Array.from(act) });
     }
     // the swing must stay on screen: sphere around the moving joint covering everything that moves
     const piv = J[spec.focusDof ? DOF[spec.focusDof][0] : joints[joints.length - 1].joint].pivot;
@@ -368,6 +401,10 @@ export function initMotion(app) {
       }
       m.g.attributes.position.needsUpdate = true;
       m.g.attributes.normal.needsUpdate = true;
+      if (m.anchorIdx !== undefined) {
+        const ai = m.anchorIdx * 3;
+        (m.mesh.userData.anchor ||= V(0, 0, 0)).set(pos[ai], pos[ai + 1], pos[ai + 2]);
+      }
     }
   }
 
@@ -384,6 +421,7 @@ export function initMotion(app) {
       c.mesh.matrixWorldNeedsUpdate = true;
     }
     for (const m of rig.meshes) {
+      delete m.mesh.userData.anchor;
       m.g.attributes.position.array.set(m.base);
       m.g.attributes.normal.array.set(m.baseN);
       m.g.attributes.position.needsUpdate = true;
@@ -494,11 +532,17 @@ export function initMotion(app) {
     app.setLabels([...groups.values()].slice(0, 5));
     // camera: side view unless the movement is mostly side-to-side or rotational
     const big = keys.reduce((b, d) => (Math.max(...spec.dofs.map((p) => Math.abs(p[d] || 0))) > Math.max(...spec.dofs.map((p) => Math.abs(p[b] || 0))) ? d : b), keys[0]);
-    const dir = /abd|side|hadd|inv/.test(big) ? V(-0.25, 0.15, 1) : /rot/.test(big) ? V(-0.4, 0.7, 1) : V(-1, 0.15, 0.35);
+    // lying demos: seen from the body's right side (or from the front when lying on the left side), a little above
+    const LYING_DIR = { supine: V(-1, 0.1, 0.75), prone: V(-1, 0.1, -0.75), side: V(-0.35, 0.1, 1) };
+    v.setPosture(spec.posture || null);
+    const dir = LYING_DIR[spec.posture]?.clone() || (/abd|side|hadd|inv/.test(big) ? V(-0.25, 0.15, 1) : /rot/.test(big) ? V(-0.4, 0.7, 1) : V(-1, 0.15, 0.35));
     const fov = THREE.MathUtils.degToRad(v.camera.fov / 2);
     const hf = Math.atan(Math.tan(fov) * v.camera.aspect);
-    const r = prox === "lumbar" ? 0.95 : st.rig.radius;
-    const c = prox === "lumbar" ? V(0, 0.95, 0) : st.rig.pivot.clone();
+    // an arm and a leg moving together (dead bug, march) or the spine: frame the whole body
+    const armAndLeg = keys.some((d) => /^(sh_|elbow|pron|wrist)/.test(d)) && keys.some((d) => /^(hip|knee|ankle|foot)/.test(d));
+    const whole = prox === "lumbar" || armAndLeg;
+    const r = whole ? 0.95 : st.rig.radius;
+    const c = whole ? V(0, 0.95, 0) : st.rig.pivot.clone();
     v.autoFit = false;
     v._animateTo(c, c.clone().addScaledVector(dir.normalize(), (r * 1.15) / Math.sin(Math.min(fov, hf))));
     v.onTick = tick;
@@ -530,6 +574,7 @@ export function initMotion(app) {
   function stop() {
     st.demo = null;
     if (!st.move) return;
+    v.setPosture(null);
     v.onTick = null;
     restore(st.rig);
     v.clearMarks();
