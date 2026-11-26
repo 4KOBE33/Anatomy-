@@ -56,19 +56,26 @@ export function initLearn(app) {
     st.move = null;
     app.viewer.clearSpotlight();
     app.setLabels([]);
-    const done = Object.values(store.lessons || {}).filter((l) => l.done).length;
+    const done = LESSONS.filter((x) => store.lessons?.[x.id]?.done).length;
+    const next = LESSONS.find((x) => !store.lessons?.[x.id]?.done);
+    const pct = LESSONS.length ? Math.round((done / LESSONS.length) * 100) : 0;
     el.innerHTML = `<div class="card">
+        <div class="eyebrow">Guided lessons</div>
         <h2>Learn</h2>
-        <p class="muted">${done} of ${LESSONS.length} lessons done. Each step lights up its structures on the body.</p>
+        <div class="progress-line"><div class="pl-bar"><i style="width:${pct}%"></i></div><span>${done} / ${LESSONS.length}</span></div>
+        <p class="muted" style="margin-top:10px">Each step lights up its structures on the body and fades everything else.</p>
+        ${next ? `<button class="go primary" id="l-continue" style="margin-top:14px;--c:${sysColor((next.systems || [])[0] || "muscular")}"><span class="go-ic">${icon((next.systems || [])[0] || "learn")}</span>
+          <span class="go-t"><b>${done ? "Continue" : "Start here"}: ${esc(next.title)}</b><span>${next.steps.length} steps · ~${next.minutes || 3} min · ${esc(next.category)}</span></span>${icon("next")}</button>` : ""}
       </div>
       ${app.body === "male"
-        ? `<div class="card"><div class="sub">Muscle actions</div><div class="chip-row" id="l-moves"></div></div>`
+        ? `<div class="card"><div class="sub">Muscle actions</div><p class="muted" style="font-size:12.5px;margin:-4px 0 10px">Watch the prime movers (red) and antagonists (blue) work a joint.</p><div class="chip-row" id="l-moves"></div></div>`
         : `<div class="card"><p class="muted tiny" style="margin:0">Muscle actions need the male body's full skeleton. <button class="linkbtn" id="l-tomale">Switch to male</button></p></div>`}
       <div id="l-list"></div>`;
+    el.querySelector("#l-continue")?.addEventListener("click", () => start(next));
     const mg = el.querySelector("#l-moves");
     el.querySelector("#l-tomale")?.addEventListener("click", () => app.loadBody("male"));
     for (const m of mg ? motion.MOVES : []) {
-      const b = h(`<button class="chip-btn ${store.movesSeen?.[m.id] ? "seen" : ""}" title="${esc(m.name)}">${esc(SHORT[m.id] || m.name)}</button>`);
+      const b = h(`<button class="chip-btn ${store.movesSeen?.[m.id] ? "seen" : ""}" title="${esc(m.name)}">${icon("play")}${esc(SHORT[m.id] || m.name)}</button>`);
       b.onclick = () => playMove(m);
       mg.appendChild(b);
     }
@@ -125,7 +132,7 @@ export function initLearn(app) {
     const phaseEl = el.querySelector("#mv-phase"), angleEl = el.querySelector("#mv-angle"), scrub = el.querySelector("#mv-scrub"), play = el.querySelector("#mv-play");
     motion.on(
       (group) => { phaseEl.innerHTML = `<span class="ph-dot"></span><b>${esc(group.label)}</b> — prime movers: ${esc(musclesLine(group))}`; },
-      (u) => { angleEl.textContent = `${motion.angle()}°`; if (motion.playing()) scrub.value = Math.round(u * 1000); }
+      (u) => { angleEl.textContent = `${motion.angle()}°`; if (motion.playing()) { scrub.value = Math.round(u * 1000); app.syncRange?.(scrub); } }
     );
     motion.start(m); // restart so the first phase label goes through the callback
     play.onclick = () => { const p = !motion.playing(); motion.setPlaying(p); play.innerHTML = p ? icon("pause") + "Pause" : icon("play") + "Play"; };
@@ -140,6 +147,10 @@ export function initLearn(app) {
     app.openPanelMobile();
   }
   app.playMove = (m) => { app.switchMode("learn"); playMove(m); };
+  // for the home dashboard: the first lesson not yet done, and a way to jump straight into it
+  app.nextLesson = () => LESSONS.find((x) => !store.lessons?.[x.id]?.done) || LESSONS[0] || null;
+  app.lessonCount = () => ({ done: LESSONS.filter((x) => store.lessons?.[x.id]?.done).length, total: LESSONS.length });
+  app.startLesson = (L) => { app.switchMode("learn"); start(L); };
 
   // ---------- player ----------
   function start(lesson) {

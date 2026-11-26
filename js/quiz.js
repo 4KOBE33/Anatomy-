@@ -86,10 +86,12 @@ export function initQuiz(app) {
     const diffName = DIFF.find(([k]) => k === s.diff)?.[1];
     el.innerHTML = `
       <div class="card">
+        <div class="eyebrow">Test yourself</div>
         <h2>Quiz</h2>
+        ${store.rounds ? `<p class="muted" style="font-size:12.5px;margin:2px 0 0">${store.rounds} round${store.rounds > 1 ? "s" : ""} played · best score ${store.best || 0}</p>` : ""}
         <div class="mode-tiles" id="q-modes"></div>
         <p class="muted" style="margin:10px 0 0">${esc(cur[2])}</p>
-        <details class="fold" id="q-opts" ${st.optsOpen ? "open" : ""}><summary>Options · ${esc(sysNames)}${s.mode === "cards" ? "" : ` · ${esc(regName)} · ${esc(diffName)}`}</summary>
+        <details class="fold" id="q-opts" ${st.optsOpen ? "open" : ""}><summary>Options <span class="sum-sel">${esc(sysNames)}${s.mode === "cards" ? "" : ` · ${esc(regName)} · ${esc(diffName)}`}</span></summary>
           <h4>Systems</h4><div class="seg-pick small" id="q-sys"></div>
           ${s.mode === "cards" ? "" : `<h4>Region</h4><div class="seg-pick small" id="q-reg"></div><h4>Difficulty</h4><div class="seg-pick small" id="q-diff"></div>`}
         </details>

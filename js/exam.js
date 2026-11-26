@@ -161,6 +161,7 @@ export function initExam(app, el, back) {
     const hist = store.exams || [];
     const best = hist.length ? Math.max(...hist.map((e) => e.pct)) : null;
     el.innerHTML = `<div class="card">
+        <div class="eyebrow">Timed · bell-ringer</div>
         <h2>Practical exam</h2>
         <p class="muted">Like a bell-ringer: each station pins a structure on a dissected specimen. Type the answer before the bell — no options, no going back. Pass mark ${PASS}%.</p>
         <div class="opt-grid" id="x-presets"></div>

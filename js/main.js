@@ -103,6 +103,7 @@ async function loadBody(body, first = false) {
   v.systemsVisible = new Set(cfg.on);
   v.skinOpacity = cfg.skin;
   $("#skin-opacity").value = cfg.skin;
+  syncRange($("#skin-opacity"));
   buildLayers();
   buildSearchIndex();
   const systems = [...new Set(manifest.map((p) => p.system))];
@@ -123,6 +124,8 @@ async function loadBody(body, first = false) {
 app.loadBody = loadBody;
 
 // ---------- layers ----------
+const SHORT_SYS = { skin: "Skin", muscular: "Muscles", connective: "Tendons", skeletal: "Skeleton", nerves: "Nerves", nervous: "Brain", cardio: "Heart",
+  respiratory: "Lungs", digestive: "Digestive", urinary: "Urinary", endocrine: "Endocrine", lymphatic: "Lymphatic", reproductive: "Reproductive" };
 function buildLayers() {
   const counts = {};
   for (const p of app.parts) counts[p.system] = (counts[p.system] || 0) + 1;
@@ -130,8 +133,8 @@ function buildLayers() {
   wrap.innerHTML = "";
   for (const s of SYSTEM_ORDER) {
     if (!counts[s]) continue;
-    const row = h(`<label class="layer" title="${counts[s]} structures"><input type="checkbox" data-sys="${s}" ${app.viewer.systemsVisible.has(s) ? "checked" : ""}/>
-      <span class="sys-ic" style="color:${sysColor(s)}">${icon(s)}</span>${esc(sysLabel(s))}</label>`);
+    const row = h(`<label class="layer" title="${esc(sysLabel(s))} · ${counts[s]} structures"><input type="checkbox" data-sys="${s}" ${app.viewer.systemsVisible.has(s) ? "checked" : ""}/>
+      <span class="sys-ic" style="color:${sysColor(s)}">${icon(s)}</span><span class="lname">${esc(SHORT_SYS[s] || sysLabel(s))}</span></label>`);
     row.querySelector("input").addEventListener("change", (e) => app.viewer.setSystemVisible(s, e.target.checked));
     wrap.appendChild(row);
   }
@@ -234,7 +237,8 @@ app.setLabels = (arr) => {
 };
 function updateLabels() {
   if (!app.labels.length) return;
-  const W = $("#stage").clientWidth;
+  // keep label boxes clear of the tool rail that runs down the right edge on phones
+  const W = $("#stage").clientWidth - (matchMedia("(max-width: 820px)").matches ? 58 : 0);
   const items = [];
   for (const l of app.labels) {
     const p = l.point ? app.viewer.projectPoint(l.point) : app.viewer.screenPos(l.id);
@@ -280,16 +284,33 @@ function renderExplore() {
     const mastered = Object.values(store.mastery).filter((m) => m.c >= 3 && m.c > m.w).length;
     const badges = achievements();
     const got = badges.filter((a) => a.got).length;
+    const lvl = levelFor(store.xp), xa = xpForLevel(lvl), xb = xpForLevel(lvl + 1);
+    const frac = Math.max(0, Math.min(1, (store.xp - xa) / (xb - xa || 1)));
+    const C = 2 * Math.PI * 26;
+    const next = app.nextLesson?.(), lc = app.lessonCount?.() || { done: 0, total: 0 };
+    const female = app.body === "female";
+    const go = (id, ic, title, sub, color = "", cls = "") =>
+      `<button class="go ${cls}" id="${id}" ${color ? `style="--c:${color}"` : ""}><span class="go-ic">${icon(ic)}</span><span class="go-t"><b>${title}</b><span>${sub}</span></span>${icon("next")}</button>`;
     el.innerHTML = `
-      <div class="card">
-        <h2>Tap any structure</h2>
-        <p class="muted">${app.body === "female"
-          ? `Female body · ${app.parts.length} structures. Organs, vessels, brain, spine, pelvis and knees — no open female dataset has a full skeleton or muscles yet.`
-          : `Male body · ${app.parts.length} structures from MRI-derived data.`} Drag to rotate, pinch to zoom.</p>
-        <div class="row"><button class="btn primary" id="golearn">${icon("learn")}Start a lesson</button><button class="btn" id="goquiz">${icon("quiz")}Quiz me</button><button class="btn" id="rand">${icon("shuffle")}Random</button></div>
+      <div class="card hero">
+        <div class="eyebrow">${female ? "Female" : "Male"} body · ${app.parts.length} structures</div>
+        <h2>What are we studying today?</h2>
+        <p class="muted">${female
+          ? "Organs, vessels, brain, spine, pelvis and knees — no open female dataset has a full skeleton or muscles yet. Tap anything for its notes."
+          : "Tap any muscle, bone, nerve or organ for its origin, insertion, action and nerve supply. Drag to turn the body."}</p>
+        <div class="go-list">
+          ${next ? go("golearn", "learn", lc.done ? "Continue learning" : "Start learning", `${esc(next.title)} · ${next.steps.length} steps`, "", "primary") : ""}
+          ${go("goquiz", "quiz", "Quiz yourself", "Find it, name it, flashcards or a timed practical", "#7cc4ff")}
+          ${go("gopain", "pain", "Something hurting?", "See the muscles involved and what helps", "#fb923c")}
+          ${go("rand", "shuffle", "Surprise me", "Jump to a random structure", "#c4a1ff")}
+        </div>
       </div>
       <div class="card">
-        <div class="mini-stats"><span><b>Lv ${levelFor(store.xp)}</b></span><span><b>${mastered}</b> mastered</span><span>🔥 <b>${currentStreak()}</b> day streak</span></div>
+        <div class="progress-card">
+          <div class="lvl-ring"><svg viewBox="0 0 62 62"><circle class="track" cx="31" cy="31" r="26"/><circle class="fill" cx="31" cy="31" r="26" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - frac)).toFixed(1)}"/></svg><b><small>Level</small>${lvl}</b></div>
+          <div class="pstats"><div><b>${mastered}</b>mastered</div><div><b>${lc.done}</b>lessons</div><div><b>${currentStreak()}</b>day streak</div></div>
+        </div>
+        <div class="xp-line"><span>${store.xp} XP</span><span>${xb - store.xp} to level ${lvl + 1}</span></div>
         <details class="fold"><summary>Badges · ${got}/${badges.length}</summary>
           <div class="badges">${badges.map((a) => `<div class="badge ${a.got ? "got" : ""}" title="${esc(a.desc)}"><span>${a.icon}</span>${esc(a.name)}</div>`).join("")}</div>
         </details>
@@ -299,8 +320,9 @@ function renderExplore() {
       const p = pool[(Math.random() * pool.length) | 0];
       if (p) selectGroup(groupIdsFor(p));
     };
+    el.querySelector("#gopain").onclick = () => switchMode("pain");
     el.querySelector("#goquiz").onclick = () => switchMode("quiz");
-    el.querySelector("#golearn").onclick = () => switchMode("learn");
+    el.querySelector("#golearn")?.addEventListener("click", () => (next ? app.startLesson(next) : switchMode("learn")));
     return;
   }
   const p = app.byId.get(id);
@@ -312,17 +334,22 @@ function renderExplore() {
   const dl = (list) => (list.length ? `<dl class="kv">${list.map(([k, l]) => `<dt>${l}</dt><dd>${esc(kb[k])}</dd>`).join("")}</dl>` : "");
   const more = kb && (extra.length || kb.features?.length || kb.clinical || kb.mnemonic || kb.facts?.length || group.length > 1);
   const canMove = app.body === "male" && app.motion?.movesFor(p.base).length;
+  const partOf = kb && kb.title.toLowerCase() !== p.base.toLowerCase();
   el.innerHTML = `<div class="card">
-    <div class="eyebrow"><span class="sys-ic" style="color:${sysColor(p.system)}">${icon(p.system)}</span>${esc(sysLabel(p.system))}${p.side ? ` · ${p.side}` : ""}${kb && kb.title.toLowerCase() !== p.base.toLowerCase() ? ` · part of ${esc(kb.title)}` : ""}</div>
-    <h2>${esc(pretty(p.name))}</h2>
-    ${kb?.summary ? `<p>${esc(kb.summary)}</p>` : kb ? "" : `<p class="muted">${esc(sysBlurb(p.system))}</p>`}
-    ${dl(main)}
-    <div class="actions">
-      <button class="btn" id="b-focus" title="Zoom in (F)">${icon("focus")}Focus</button>
-      <button class="btn" id="b-iso" title="Show only this (I)">${icon("isolate")}Isolate</button>
-      <button class="btn" id="b-hide" title="Hide it to see underneath (H)">${icon("hide")}Hide</button>
-      ${canMove ? `<button class="btn" id="b-move">${icon("play")}See it move</button>` : ""}
+    <div class="info-head">
+      <span class="sys-badge" style="color:${sysColor(p.system)}">${icon(p.system)}</span>
+      <div class="ih-t"><div class="eyebrow">${esc(sysLabel(p.system))}${p.side ? ` · ${p.side}` : ""}</div><h2>${esc(pretty(p.name))}</h2></div>
+      <button class="icon-btn sm" id="b-close" title="Close (Esc)" aria-label="Close">${icon("close")}</button>
     </div>
+    ${partOf ? `<div class="part-of">Part of <b>${esc(kb.title)}</b></div>` : ""}
+    ${kb?.summary ? `<p class="summary">${esc(kb.summary)}</p>` : kb ? "" : `<p class="summary muted">${esc(sysBlurb(p.system))}</p>`}
+    <div class="actionbar" style="--n:${canMove ? 4 : 3}">
+      <button id="b-focus" title="Zoom in (F)">${icon("focus")}Focus</button>
+      <button id="b-iso" title="Show only this (I)">${icon("isolate")}Isolate</button>
+      <button id="b-hide" title="Hide it to see underneath (H)">${icon("hide")}Hide</button>
+      ${canMove ? `<button id="b-move" class="hot" title="Watch the muscles that move this joint">${icon("play")}See it move</button>` : ""}
+    </div>
+    ${dl(main)}
     ${more ? `<details class="fold"><summary>More</summary>
       ${dl(extra)}
       ${kb.features?.length ? `<h4>Key features</h4><p>${kb.features.map(esc).join(" · ")}</p>` : ""}
@@ -336,6 +363,7 @@ function renderExplore() {
   </div>`;
   el.querySelectorAll(".parts-list button").forEach((b) => (b.onclick = () => { selectPart(b.dataset.id); app.viewer.focusSmart([b.dataset.id]); }));
   el.querySelector("#b-focus").onclick = () => app.viewer.focus([id], { pad: 2.2 });
+  el.querySelector("#b-close").onclick = () => selectPart(null);
   el.querySelector("#b-hide").onclick = hideSelected;
   el.querySelector("#b-iso").onclick = () => app.viewer.spotlight(groupIdsFor(p), { highlight: false, pad: 1.8 });
   el.querySelector("#b-both")?.addEventListener("click", () => { const ids = group.map((q) => q.id); app.viewer.select([id], ids); app.viewer.isolate(ids); app.viewer.focus(ids); });
@@ -368,7 +396,12 @@ function bindToolbar() {
     app.viewer.isolate(groupIdsFor(app.byId.get(app.selectedId)));
   };
   $("#btn-showall").onclick = () => { app.viewer.showAll(); toast("Everything visible again"); };
-  $("#btn-drawer").onclick = () => $("#drawer").classList.toggle("open");
+  $("#btn-drawer").onclick = () => {
+    if (matchMedia("(max-width: 820px)").matches) { $("#drawer").classList.toggle("open"); return; }
+    const closed = document.body.classList.toggle("drawer-closed");
+    try { localStorage.setItem("anatomy3d.drawer", closed ? "closed" : "open"); } catch { /* private mode */ }
+    setTimeout(updateInset, 320);
+  };
   $("#panel-grip").onclick = () => {
     const p = $("#panel");
     if (p.classList.contains("collapsed")) p.classList.remove("collapsed");
@@ -396,6 +429,7 @@ function bindViewControls() {
     slider.disabled = !axis;
     if (axis) {
       slider.value = { transverse: 0.62, sagittal: 0.5, coronal: 0.5 }[axis];
+      syncRange(slider);
       app.viewer.setView(axis === "sagittal" ? "left" : "front");
       toast({ transverse: "Horizontal slice — drag the slider to move up & down", sagittal: "Side-to-side slice — showing the body's right half", coronal: "Front-to-back slice — showing the back half" }[axis]);
     }
@@ -421,11 +455,26 @@ function updateInset() {
     app.viewer?.setInsets({ top: 56, bottom });
   } else {
     const d = drawer.getBoundingClientRect(), p = panel.getBoundingClientRect();
-    app.viewer?.setInsets({ left: d.right + 8, right: W - p.left + 56, top: 64, bottom: 0 });
+    const left = document.body.classList.contains("drawer-closed") ? 0 : d.right + 8;
+    const right = p.width ? W - p.left + 8 : 0;
+    document.documentElement.style.setProperty("--inset-l", left + "px");
+    document.documentElement.style.setProperty("--inset-r", right + "px");
+    app.viewer?.setInsets({ left, right: right + 48, top: 64, bottom: 0 });
   }
 }
 new ResizeObserver(updateInset).observe(document.querySelector("#panel"));
 window.addEventListener("resize", updateInset);
+
+// range sliders paint their track up to the thumb (CSS reads --pct)
+function syncRange(el) {
+  const min = +el.min || 0, max = el.max === "" ? 100 : +el.max;
+  el.style.setProperty("--pct", ((+el.value - min) / (max - min || 1)) * 100 + "%");
+}
+const syncRanges = () => document.querySelectorAll('input[type="range"]').forEach(syncRange);
+document.addEventListener("input", (e) => { if (e.target.matches?.('input[type="range"]')) syncRange(e.target); });
+new MutationObserver(syncRanges).observe(document.body, { childList: true, subtree: true });
+app.syncRange = syncRange;
+try { if (localStorage.getItem("anatomy3d.drawer") === "closed") document.body.classList.add("drawer-closed"); } catch { /* private mode */ }
 
 function closeDrawerMobile() { $("#drawer").classList.remove("open"); }
 function openPanelMobile() { $("#panel").classList.remove("collapsed"); }

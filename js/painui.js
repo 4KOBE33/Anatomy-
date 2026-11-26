@@ -23,6 +23,7 @@ export function initPain(app) {
   function render() {
     el.innerHTML = `
       <div class="card">
+        <div class="eyebrow">Pain & exercise guide</div>
         <h2>What's hurting?</h2>
         <div class="pain-input" style="margin-top:10px">
           <input id="p-text" placeholder="e.g. outside of my knee when I run" value="${esc(st.text)}" />

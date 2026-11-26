@@ -22,7 +22,7 @@
 </head>
 <body>
   <header class="topbar">
-    <button class="icon-btn only-mobile" id="btn-drawer" aria-label="Layers and search"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+    <button class="icon-btn" id="btn-drawer" aria-label="Show or hide the sidebar" title="Sidebar (layers & search)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
     <div class="brand"><span class="brand-dot"></span>Anatomy <b>3D</b></div>
     <nav class="tabs" role="tablist">
       <button role="tab" class="tab active" data-mode="explore">Explore</button>
@@ -35,7 +35,7 @@
       <div class="player" id="player" title="Your study level">
         <span class="lvl" id="lvl">Lv 1</span><span class="streak-badge" id="streak"></span>
         <div class="xpbar"><div id="xpfill"></div></div>
-        <span class="xptext" id="xptext" hidden>0 XP</span>
+        <span class="xptext" id="xptext">0 XP</span>
       </div>
     </div>
   </header>
@@ -48,7 +48,7 @@
         <div class="results" id="search-results"></div>
       </div>
       <section class="block">
-        <h3>Show</h3>
+        <h3>Body systems</h3>
         <div id="layers" class="layers"></div>
         <label class="slider-row" id="skin-row">Skin
           <input type="range" id="skin-opacity" min="0" max="1" step="0.05" value="0.35" />
@@ -119,6 +119,9 @@
   </main>
 
   <div class="toast" id="toast"></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="lvlgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbd978"/><stop offset="1" stop-color="#ff7a59"/></linearGradient>
+  </defs></svg>
   <div class="modal hidden" id="routine"></div>
 
   <script type="module" src="js/main.js"></script>

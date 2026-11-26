@@ -19,8 +19,8 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 // ---------- look ----------
 // kind: which procedural micro-surface the shader adds (muscle fibres, bone, soft organ, skin).
 const SYSTEM_STYLE = {
-  muscular: { color: 0x9b2c27, roughness: 0.5, jitter: 0.08, kind: "MUSCLE", sheen: 0.55, clearcoat: 0.18 },
-  connective: { color: 0xcfc4ae, roughness: 0.38, kind: "ORGAN", sheen: 0.3, clearcoat: 0.25 },
+  muscular: { color: 0x922826, roughness: 0.5, jitter: 0.08, kind: "MUSCLE", sheen: 0.55, clearcoat: 0.18 },
+  connective: { color: 0xc6b9a0, roughness: 0.38, kind: "ORGAN", sheen: 0.3, clearcoat: 0.25 },
   skeletal: { color: 0xe6d8b8, roughness: 0.58, kind: "BONE", clearcoat: 0.05 },
   nervous: { color: 0xe2ada0, roughness: 0.5, kind: "ORGAN", sheen: 0.4, clearcoat: 0.35 },
   cardio: { color: 0xb01f29, roughness: 0.32, kind: "ORGAN", clearcoat: 0.45 },
@@ -63,7 +63,7 @@ const NAME_COLORS = [
 ];
 
 // Uniforms shared by every material (one change updates the whole body).
-const SHARED = { uCut: { value: 0 }, uDetail: { value: 1 } };
+const SHARED = { uCut: { value: 0 }, uDetail: { value: 1 }, uRim: { value: 0.09 } };
 
 const SHADER_COMMON = /* glsl */ `
 varying vec3 vObjPos;
@@ -72,6 +72,7 @@ uniform float uGhost;
 uniform float uCut;
 uniform vec3 uCutColor;
 uniform float uDetail;
+uniform float uRim;
 #ifdef MUSCLE
 varying float vTendon;
 #endif
@@ -154,7 +155,13 @@ roughnessFactor = mix(roughnessFactor, 0.28, tend);`)
       .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
 float bumpAmt = ${bump.toFixed(2)} * microFade * (1.0 - tend * 0.8);
 if (bumpAmt > 0.001) normal = perturbN(-vViewPosition, normal, vec2(dFdx(micro), dFdy(micro)) * bumpAmt, faceDirection);`)
+      .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+// highlights glow at the silhouette and stay light in the middle, so the surface detail still shows
+float rimF = 1.0 - abs(dot(normal, normalize(vViewPosition)));
+totalEmissiveRadiance *= 0.35 + 2.4 * pow(rimF, 2.0);`)
       .replace("#include <opaque_fragment>", `#include <opaque_fragment>
+// faint cool studio rim so the body separates from the backdrop
+gl_FragColor.rgb += vec3(0.55, 0.72, 1.0) * pow(rimF, 3.0) * uRim * (1.0 - uGhost);
 if (uCut > 0.5 && !gl_FrontFacing) gl_FragColor = vec4(uCutColor, 1.0);
 gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11))) * vec3(0.72, 0.84, 1.0), uGhost * 0.85);`);
   };
@@ -383,11 +390,19 @@ export class Viewer {
     cv.width = cv.height = 256;
     const g2 = cv.getContext("2d");
     const grad = g2.createRadialGradient(128, 128, 0, 128, 128, 128);
-    grad.addColorStop(0, "rgba(140,170,220,0.55)");
-    grad.addColorStop(0.45, "rgba(90,120,170,0.18)");
+    grad.addColorStop(0, "rgba(130,160,210,0.30)");
+    grad.addColorStop(0.35, "rgba(95,125,175,0.14)");
+    grad.addColorStop(0.7, "rgba(70,95,140,0.05)");
     grad.addColorStop(1, "rgba(60,80,120,0)");
     g2.fillStyle = grad;
     g2.fillRect(0, 0, 256, 256);
+    // turntable rings
+    g2.lineWidth = 1.4;
+    g2.strokeStyle = "rgba(170,200,245,0.20)";
+    g2.beginPath(); g2.arc(128, 128, 92, 0, Math.PI * 2); g2.stroke();
+    g2.lineWidth = 1;
+    g2.strokeStyle = "rgba(170,200,245,0.09)";
+    g2.beginPath(); g2.arc(128, 128, 112, 0, Math.PI * 2); g2.stroke();
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false }));
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.002;
@@ -757,10 +772,11 @@ export class Viewer {
     for (const [id, p] of this.parts) {
       const m = p.mesh.material;
       let col = 0x000000, k = 0;
-      if (this.marks.has(id)) { col = this.marks.get(id); k = 0.3 + 0.3 * pulse; }
-      if (this.related.has(id)) { col = 0x3fb6ff; k = 0.16; }
-      if (this.selected.has(id)) { col = 0xffb238; k = 0.12; } // light tint — the outline does the work
-      if (this.hoverId === id && !this.selected.has(id)) { col = 0x7fd8ff; k = 0.22; }
+      // strengths suit the rim-weighted emissive in the shader (bright edges, light centre)
+      if (this.marks.has(id)) { col = this.marks.get(id); k = 0.75 + 0.45 * pulse; }
+      if (this.related.has(id)) { col = 0x3fb6ff; k = 0.35; }
+      if (this.selected.has(id)) { col = 0xffb238; k = 0.3; } // the outline does most of the work
+      if (this.hoverId === id && !this.selected.has(id)) { col = 0x7fd8ff; k = 0.45; }
       if (k === 0 && m.emissiveIntensity === 0) continue;
       m.emissive.setHex(col);
       m.emissiveIntensity = k;
@@ -1067,7 +1083,9 @@ export class Viewer {
   _updateCube() {
     if (!this.cubeEl) return;
     tmpM.extractRotation(this.camera.matrixWorldInverse).premultiply(FLIP_Y).multiply(FLIP_Y);
-    this.cubeEl.style.transform = `translateZ(-34px) matrix3d(${tmpM.elements.map((x) => x.toFixed(5)).join(",")})`;
+    // a small fixed tilt (seen from slightly above and to the right) so it always reads as a cube
+    const half = (this.cubeEl.offsetWidth || 58) / 2;
+    this.cubeEl.style.transform = `translateZ(${-half - 6}px) rotateX(-16deg) rotateY(-24deg) matrix3d(${tmpM.elements.map((x) => x.toFixed(5)).join(",")})`;
   }
 
   _frame() {
@@ -1090,6 +1108,11 @@ export class Viewer {
       this.camera.lookAt(this.controls.target);
       if (ut.t >= 1) this._upTween = null;
       this._dirty = true;
+    }
+    // the turntable floor belongs to the full-body view: fade it out as the camera moves in
+    if (this.floorGlow) {
+      const fo = Math.min(1, Math.max(0.08, (this.camera.position.distanceTo(this.controls.target) - 1.1) / 1.6));
+      if (Math.abs(this.floorGlow.material.opacity - fo) > 0.01) { this.floorGlow.material.opacity = fo; this._dirty = true; }
     }
     this._hoverTick?.();
     if (this.onTick) { this.onTick(dt); this._dirty = true; this._shadowDirty = true; } // per-frame animation hook (muscle actions)

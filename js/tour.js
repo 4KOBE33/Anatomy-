@@ -4,7 +4,7 @@ import { store, saveStore, esc } from "./util.js";
 const mobile = () => matchMedia("(max-width: 820px)").matches;
 const STEPS = [
   { el: () => "#canvas-wrap", title: "Explore the body", text: "Drag to turn it, pinch or scroll to zoom, and tap any structure for its study notes." },
-  { el: () => (mobile() ? "#btn-drawer" : "#drawer .block"), title: "Choose what you see",
+  { el: () => (mobile() || document.body.classList.contains("drawer-closed") ? "#btn-drawer" : "#drawer .block"), title: "Choose what you see",
     text: "Turn body systems on and off — muscles, nerves, organs and more. Search finds any structure by name." },
   { el: () => ".tabs", title: "Study your way",
     text: "Guided lessons in Learn, quizzes and a timed practical in Quiz — and tell it what hurts to get exercise ideas." },
