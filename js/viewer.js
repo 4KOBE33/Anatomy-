@@ -910,7 +910,11 @@ export class Viewer {
     this.floorGlow.visible = !name;
     this._upTween = { t: 0, from: this.camera.up.clone(), to: up };
     if (!this.mat) {
-      this.mat = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x2c3a52, roughness: 0.92, transparent: true, opacity: 0.92 }));
+      this.mat = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x1a2232, roughness: 0.95, transparent: true, opacity: 0.94 }));
+      // a slightly lighter edge so the mat reads as an object, not a slab of colour
+      const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0x4a5a78, transparent: true, opacity: 0.6 }));
+      edge.raycast = () => {};
+      this.mat.add(edge);
       this.mat.raycast = () => {};
       this.scene.add(this.mat);
     }

@@ -486,12 +486,24 @@ function bindTabs() {
     t.insertAdjacentHTML("afterbegin", icon(t.dataset.mode, "tab-ic"));
     t.onclick = () => switchMode(t.dataset.mode);
   });
+  // one gold pill that slides to the active tab
+  $(".tabs").insertAdjacentHTML("afterbegin", `<span class="tab-ind" aria-hidden="true"></span>`);
+  requestAnimationFrame(moveTabIndicator);
+  window.addEventListener("resize", moveTabIndicator);
+  document.fonts?.ready.then(moveTabIndicator);
+}
+function moveTabIndicator() {
+  const t = document.querySelector(".tab.active"), ind = $(".tab-ind");
+  if (!t || !ind) return;
+  ind.style.width = t.offsetWidth + "px";
+  ind.style.transform = `translateX(${t.offsetLeft - 4}px)`;
 }
 function switchMode(mode) {
   if (mode === app.mode) return;
   app.modeHandlers[app.mode]?.exit?.();
   app.mode = mode;
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.mode === mode));
+  moveTabIndicator();
   document.querySelectorAll(".mode-panel").forEach((p) => p.classList.toggle("hidden", p.id !== `panel-${mode}`));
   app.hoverEnabled = true;
   app.viewer.pickFilter = null;

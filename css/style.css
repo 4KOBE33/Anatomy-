@@ -67,8 +67,8 @@ body {
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "ss01", "cv11";
 }
-body::after { /* vignette above the canvas, below the UI */
-  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+.stage::after { /* vignette above the canvas, below labels, tools and panels */
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
   background: radial-gradient(120% 100% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
 }
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -95,8 +95,13 @@ svg.ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-wid
 .tab { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; color: var(--muted); padding: 8px 16px; border-radius: 999px; font-weight: 500; font-size: 13.5px;
   transition: color .2s, background .2s, box-shadow .2s; white-space: nowrap; }
 .tab:hover { color: var(--text); background: var(--surface); }
-.tab.active { color: var(--accent-ink); background: linear-gradient(180deg, var(--accent-hi), var(--accent)); font-weight: 600;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px -6px rgba(246, 196, 83, 0.65); }
+.tabs { position: relative; }
+.tab { position: relative; z-index: 1; }
+.tab.active { color: var(--accent-ink); font-weight: 600; }
+.tab.active:hover { background: none; }
+.tab-ind { position: absolute; left: 4px; top: 4px; bottom: 4px; width: 0; border-radius: 999px; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px -6px rgba(246, 196, 83, 0.65);
+  transition: transform .35s var(--ease), width .35s var(--ease); }
 .tab .tab-ic { width: 15px; height: 15px; stroke-width: 2; }
 .top-right { display: flex; align-items: center; gap: 8px; }
 .body-btn, .player { height: 44px; display: flex; align-items: center; gap: 7px; padding: 0 14px; border-radius: 999px; font-weight: 600; font-size: 13px; white-space: nowrap; }
