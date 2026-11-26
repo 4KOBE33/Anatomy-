@@ -35,6 +35,9 @@ def main(out):
     # title first so the host finds it
     m = re.search(r"<title>.*?</title>", html)
     html = m.group(0) + "\n" + html.replace(m.group(0), "", 1).strip() + "\n"
+    # gallery/link-preview picture, if one was made (thumb.jpg in the output folder)
+    if os.path.exists(os.path.join(out, "thumb.jpg")):
+        html = html.replace("<title>Anatomy 3D</title>", '<title>Anatomy 3D</title><link rel="artifact-thumbnail" href="thumb.jpg">', 1)
     html = html.replace('<script type="module" src="js/main.js"></script>',
                         '<script>window.ANATOMY_MODEL_FORMAT = "b64";</script>\n  <script type="module" src="js/main.js"></script>')
     open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(html)
