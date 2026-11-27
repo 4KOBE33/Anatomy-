@@ -42,6 +42,7 @@ async function boot() {
   $("#skin-opacity").addEventListener("input", (e) => app.viewer.setSkinOpacity(+e.target.value));
   $("#btn-body").onclick = () => loadBody(app.body === "male" ? "female" : "male");
   $("#btn-tour").onclick = () => { closeDrawerMobile(); startTour(); };
+  $("#btn-keys").onclick = () => toggleKeys();
   await loadBody(app.body, true);
   setTimeout(() => ($("#hint").style.opacity = 0), 7000);
 
@@ -54,7 +55,7 @@ async function boot() {
     const tip = $("#hover-tip");
     if (!id || !app.hoverEnabled) { tip.style.display = "none"; return; }
     const p = app.byId.get(id);
-    tip.textContent = pretty(p.name);
+    tip.innerHTML = `<i style="background:${sysColor(p.system)};box-shadow:0 0 8px ${sysColor(p.system)}"></i>${esc(pretty(p.name))}`;
     tip.style.display = "block";
     const r = $("#stage").getBoundingClientRect();
     tip.style.left = x - r.left + 14 + "px";
@@ -158,16 +159,39 @@ function buildSearchIndex() {
   index = [];
   const seen = new Set();
   for (const p of app.parts) {
-    index.push({ label: pretty(p.name), sub: sysLabel(p.system), ids: [p.id], text: p.name.toLowerCase() });
+    index.push({ label: pretty(p.name), sub: sysLabel(p.system), sys: p.system, ids: [p.id], text: p.name.toLowerCase() });
     if (p.kb && !seen.has(p.kb.key)) {
       seen.add(p.kb.key);
       const ids = app.parts.filter((q) => q.kb === p.kb).map((q) => q.id);
-      index.push({ label: p.kb.title, sub: `${sysLabel(p.system)} · whole structure (${ids.length} parts)`, ids, text: (p.kb.title + " " + (p.kb.match || []).join(" ")).toLowerCase(), kb: true });
+      index.push({ label: p.kb.title, sub: `${sysLabel(p.system)} · ${ids.length} part${ids.length > 1 ? "s" : ""}`, sys: p.system, ids,
+        text: (p.kb.title + " " + (p.kb.match || []).join(" ")).toLowerCase(), kb: true });
     }
   }
 }
+// wrap each query word in <mark>: ranges are found on the raw label, then each piece is escaped
+function highlight(label, words) {
+  const low = label.toLowerCase(), on = new Uint8Array(label.length);
+  for (const w of words.filter(Boolean)) for (let k = low.indexOf(w); k >= 0; k = low.indexOf(w, k + 1)) on.fill(1, k, k + w.length);
+  let out = "", k = 0;
+  while (k < label.length) {
+    let e = k;
+    while (e < label.length && on[e] === on[k]) e++;
+    out += on[k] ? `<mark>${esc(label.slice(k, e))}</mark>` : esc(label.slice(k, e));
+    k = e;
+  }
+  return out;
+}
 function buildSearch() {
   const input = $("#search"), res = $("#search-results");
+  let active = 0;
+  const rows = () => [...res.querySelectorAll("button")];
+  const setActive = (k) => {
+    const r = rows();
+    if (!r.length) return;
+    active = (k + r.length) % r.length;
+    r.forEach((b, n) => b.classList.toggle("act", n === active));
+    r[active].scrollIntoView({ block: "nearest" });
+  };
   const run = () => {
     const q = input.value.trim().toLowerCase();
     if (q.length < 2) { res.classList.remove("open"); return; }
@@ -176,18 +200,36 @@ function buildSearch() {
       .filter((e) => words.every((w) => e.text.includes(w)))
       .sort((a, b) => (b.kb - a.kb) || (a.text.indexOf(words[0]) - b.text.indexOf(words[0])) || a.label.length - b.label.length)
       .slice(0, 30);
-    res.innerHTML = hits.length ? "" : `<div class="empty" style="padding:12px">No match</div>`;
+    res.innerHTML = hits.length ? "" : `<div class="res-empty">No structure matches “${esc(input.value.trim())}”</div>`;
     for (const e of hits) {
-      const b = h(`<button class="${e.kb ? "kb" : ""}">${esc(e.label)}<small>${esc(e.sub)}</small></button>`);
+      const b = h(`<button class="${e.kb ? "kb" : ""}"><span class="r-ic" style="color:${sysColor(e.sys)}">${icon(e.sys)}</span>
+        <span class="r-t"><span class="r-l">${highlight(e.label, words)}</span><small>${esc(e.sub)}</small></span>${e.kb ? `<span class="r-tag">Structure</span>` : ""}</button>`);
       b.onclick = () => { res.classList.remove("open"); input.blur(); selectGroup(e.ids); closeDrawerMobile(); };
+      b.onpointerenter = () => setActive(rows().indexOf(b));
       res.appendChild(b);
     }
     res.classList.add("open");
+    setActive(0);
   };
   input.addEventListener("input", run);
   input.addEventListener("focus", run);
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") res.querySelector("button")?.click(); if (e.key === "Escape") res.classList.remove("open"); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive(active + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive(active - 1); }
+    else if (e.key === "Enter") rows()[active]?.click();
+    else if (e.key === "Escape") { res.classList.remove("open"); input.blur(); }
+  });
   document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".search")) res.classList.remove("open"); });
+  // "/" or Ctrl/⌘-K jumps to search from anywhere (opening the sidebar if it is folded away)
+  window.addEventListener("keydown", (e) => {
+    if (e.target.matches("input, textarea")) return;
+    if (e.key === "/" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")) {
+      e.preventDefault();
+      if (matchMedia("(max-width: 820px)").matches) $("#drawer").classList.add("open");
+      else if (document.body.classList.contains("drawer-closed")) $("#btn-drawer").click();
+      input.focus();
+    }
+  });
 }
 
 // ---------- selection ----------
@@ -414,10 +456,35 @@ function bindToolbar() {
     if (k === "h") hideSelected();
     else if (k === "i") $("#btn-isolate").click();
     else if (k === "a") $("#btn-showall").click();
-    else if (k === "escape") { if (app.mode === "explore") selectPart(null); }
+    else if (k === "escape") { if ($("#keys")) $("#keys").remove(); else if (app.mode === "explore") selectPart(null); }
     else if (k === "f" && app.selectedId) app.viewer.focus([app.selectedId], { pad: 2.2 });
+    else if (e.key === "?") toggleKeys();
+    else if (k === "1" || k === "2" || k === "3" || k === "4") {
+      // answer options on screen take the number keys; otherwise they switch tabs
+      const opts = [...document.querySelectorAll(".mode-panel:not(.hidden) .opt:not(:disabled)")];
+      if (opts.length) opts[+k - 1]?.click();
+      else switchMode(["explore", "learn", "quiz", "pain"][+k - 1]);
+    }
+    else if (k === "arrowright" || k === "arrowleft") {
+      const id = k === "arrowright" ? "#l-next" : "#l-prev";
+      const b = document.querySelector(`#panel-learn:not(.hidden) ${id}`);
+      if (b && !b.disabled) b.click();
+    }
+    else if (k === "enter") document.querySelector(".mode-panel:not(.hidden) #q-next")?.click();
   });
 }
+function toggleKeys() {
+  const old = $("#keys");
+  if (old) { old.remove(); return; }
+  const K = [["Drag", "Turn the body"], ["Scroll / pinch", "Zoom"], ["Right-drag", "Move the view"], ["/  or  Ctrl K", "Search"], ["1 – 4", "Switch tabs, or pick a quiz answer"], ["← →", "Previous / next lesson step"], ["Enter", "Next quiz question"],
+    ["F", "Focus the selected structure"], ["H", "Hide it"], ["I", "Isolate it"], ["A", "Show everything"], ["Esc", "Close / deselect"], ["?", "This list"]];
+  const m = h(`<div class="modal keys-modal" id="keys"><div class="keys-card"><div class="kc-head"><h3>Keyboard shortcuts</h3>
+    <button class="icon-btn sm" aria-label="Close">${icon("close")}</button></div>
+    ${K.map(([a, b]) => `<div class="krow"><span>${b}</span><span>${a.split(/\s+or\s+/).map((x) => `<kbd>${esc(x.trim())}</kbd>`).join(`<i class="kor">or</i>`)}</span></div>`).join("")}</div></div>`);
+  m.onclick = (e) => { if (e.target === m || e.target.closest(".icon-btn")) m.remove(); };
+  document.body.appendChild(m);
+}
+app.toggleKeys = toggleKeys;
 // ---------- view: slice + graphics ----------
 function bindViewControls() {
   let axis = null;

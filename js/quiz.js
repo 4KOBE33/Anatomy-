@@ -245,7 +245,12 @@ export function initQuiz(app) {
       else app.viewer.setView("front");
     }
     el.innerHTML = `<div class="card">
-      <div class="qhead"><span>Question ${r.i + 1}/${r.qs.length}</span><span>Score <b style="color:var(--text)">${r.score}</b></span>${r.streak > 1 ? `<span class="streak">🔥 ${r.streak}</span>` : "<span></span>"}</div>
+      <div class="qtop">
+        <span class="qnum">Question ${r.i + 1}<small> / ${r.qs.length}</small></span>
+        ${r.streak > 1 ? `<span class="qstreak" title="${r.streak} correct in a row">🔥 ${r.streak}</span>` : ""}
+        <span class="qscore"><b id="q-score">${r.score}</b>pts</span>
+      </div>
+      <div class="qdots">${r.qs.map((qq, k) => `<i class="${k < r.i ? (qq.ok ? "ok" : "no") : k === r.i ? "cur" : ""}"></i>`).join("")}</div>
       <div class="timer"><div id="q-timer" style="width:100%"></div></div>
       ${body}
       <div id="q-fb"></div>
@@ -301,7 +306,9 @@ export function initQuiz(app) {
       r.streak = 0;
       r.missed.push(q);
     }
+    q.ok = ok;
     recordAnswer(q.unit.base, ok);
+    juice(ok, pts, r);
     // reveal
     el.querySelectorAll(".opt").forEach((b) => {
       if (b.textContent === q.answer) b.classList.add("right");
@@ -321,6 +328,27 @@ export function initQuiz(app) {
     el.querySelector("#q-hint")?.remove();
     el.querySelector("#q-skip")?.remove();
     if (ok) st.autoNext = setTimeout(next, 1600);
+  }
+
+  // feedback you can feel: panel glow or shake, score counting up, a floating "+pts", streak milestones
+  function juice(ok, pts, r) {
+    const card = el.querySelector(".card");
+    if (card) { card.classList.remove("flash-ok", "shake"); void card.offsetWidth; card.classList.add(ok ? "flash-ok" : "shake"); }
+    el.querySelector(".qdots i.cur")?.classList.add(ok ? "ok" : "no");
+    if (!ok) return;
+    const sc = $("#q-score");
+    if (sc) {
+      const from = r.score - pts, t0 = performance.now();
+      const step = (t) => { const k = Math.min(1, (t - t0) / 600); sc.textContent = Math.round(from + pts * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+      const f = h(`<span class="pts-float">+${pts}</span>`);
+      sc.parentElement.appendChild(f);
+      setTimeout(() => f.remove(), 1300);
+    }
+    if ([3, 5, 10].includes(r.streak)) {
+      toast(`🔥 ${r.streak} in a row!`);
+      if (r.streak >= 5) confetti({ count: 70 });
+    }
   }
 
   function next() {

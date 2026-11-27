@@ -30,7 +30,7 @@ const SYSTEM_STYLE = {
   endocrine: { color: 0xc58a3a, roughness: 0.45, kind: "ORGAN", clearcoat: 0.4 },
   reproductive: { color: 0xd395a3, roughness: 0.45, kind: "ORGAN", clearcoat: 0.4 },
   lymphatic: { color: 0x6e2a4c, roughness: 0.4, kind: "ORGAN", clearcoat: 0.5 },
-  skin: { color: 0xd6a081, roughness: 0.55, kind: "SKIN", sheen: 0.6 },
+  skin: { color: 0xd49a7c, roughness: 0.5, kind: "SKIN", sheen: 0.75, clearcoat: 0.06 },
   nerves: { color: 0xf0cf5c, roughness: 0.4, kind: "ORGAN", sheen: 0.7, clearcoat: 0.35 },
 };
 const NAME_COLORS = [
@@ -96,9 +96,9 @@ float surfHeight(vec3 p, out float aa) {
   float h = strands * 0.55 + vnoise(qr) * 0.3 + vnoise(qr * 2.1 + 7.1) * 0.15;
   aa = max(fwidth(q.y), fwidth(q.z)) * 1.3;
 #elif defined(BONE)
-  vec3 q = p * 700.0;
-  float h = vnoise(q) * 0.55 + vnoise(q * 2.9 + 3.3) * 0.45;
-  aa = fwidth(q.x) * 1.4;
+  vec3 q = p * 420.0;
+  float h = vnoise(q) * 0.75 + vnoise(q * 2.2 + 3.3) * 0.25;
+  aa = fwidth(q.x) * 1.6;
 #elif defined(SKIN)
   vec3 q = p * 1400.0;
   float h = vnoise(q);
@@ -135,7 +135,7 @@ vObjPos = position;
 #ifdef MUSCLE
 vTendon = aTendon;
 #endif`);
-    const bump = { MUSCLE: 0.6, BONE: 0.4, SKIN: 0.25, ORGAN: 0.3 }[kind];
+    const bump = { MUSCLE: 0.6, BONE: 0.22, SKIN: 0.15, ORGAN: 0.3 }[kind];
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", "#include <common>\n" + SHADER_COMMON)
       .replace("#include <color_fragment>", `#include <color_fragment>
@@ -147,6 +147,13 @@ float tend = 0.0;
 tend = smoothstep(0.12, 0.8, vTendon);
 diffuseColor.rgb *= mix(1.0, mix(0.8, 1.1, micro), microFade * (1.0 - tend));
 diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.80, 0.76, 0.64), tend);
+#elif defined(BONE)
+// ivory: broad warm/cool patches plus a gentle fine grain
+float tone = vnoise(vObjPos * 38.0);
+diffuseColor.rgb *= mix(vec3(0.95, 0.93, 0.9), vec3(1.03, 1.01, 0.97), tone);
+diffuseColor.rgb *= mix(1.0, mix(0.95, 1.03, micro), microFade);
+#elif defined(SKIN)
+diffuseColor.rgb *= mix(1.0, mix(0.96, 1.03, micro), microFade);
 #else
 diffuseColor.rgb *= mix(1.0, mix(0.9, 1.06, micro), microFade);
 #endif`)
@@ -162,6 +169,10 @@ totalEmissiveRadiance *= 0.35 + 2.4 * pow(rimF, 2.0);`)
       .replace("#include <opaque_fragment>", `#include <opaque_fragment>
 // faint cool studio rim so the body separates from the backdrop
 gl_FragColor.rgb += vec3(0.55, 0.72, 1.0) * pow(rimF, 3.0) * uRim * (1.0 - uGhost);
+#ifdef SKIN
+gl_FragColor.rgb += vec3(0.75, 0.28, 0.18) * pow(rimF, 1.6) * 0.16;
+gl_FragColor.rgb *= vec3(1.0, 0.97, 0.95);
+#endif
 if (uCut > 0.5 && !gl_FrontFacing) gl_FragColor = vec4(uCutColor, 1.0);
 gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11))) * vec3(0.72, 0.84, 1.0), uGhost * 0.85);`);
   };
